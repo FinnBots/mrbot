@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>Mr Bot — Fetch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jersey+15&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --plum:#5f4c57; --plum-deep:#3e323a; --amber:#f2a03d;
+    --peach:#fdf3e7; --peach-strong:#f5c8a0;
+    --cyan:#a0e8f0; --pink:#f07cc0; --yellow:#f5f0a0;
+    --muted:#9c8a92; --line:#e3d6c6; --red:#c0392b;
+    --disp:'Jersey 15', ui-monospace, monospace;
+    --body:'Plus Jakarta Sans', system-ui, sans-serif;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100dvh; overflow:hidden; margin:0;}
+  body{
+    font-family:var(--body); color:var(--plum-deep);
+    background:var(--peach-strong);
+    display:flex; flex-direction:column; align-items:center;
+    justify-content:stretch; user-select:none;
+  }
+  .app{
+    width:100%; max-width:460px; height:100dvh;
+    background:var(--peach);
+    display:flex; flex-direction:column;
+    box-shadow:0 0 0 1px rgba(95,76,87,.12);
+  }
+  /* 1 topbar */
+  .topbar{background:var(--plum); color:#fff; padding:8px 14px 10px; flex:0 0 auto;}
+  .eyebrow{font-family:var(--disp); font-size:12px; letter-spacing:.14em; color:var(--amber);}
+  .titlerow{display:flex; align-items:center; justify-content:space-between; gap:8px;}
+  .title{font-family:var(--disp); font-size:26px; line-height:1; margin:0;}
+  .info{width:26px;height:26px;border:1.5px solid #fff;border-radius:50%;background:none;color:#fff;
+        font-family:var(--disp);font-size:15px;cursor:pointer;}
+  .modestrip{display:flex; gap:6px; margin-top:8px;}
+  .mode{font-family:var(--disp); font-size:13px; padding:2px 12px; border-radius:11px;}
+  .mode.free{background:var(--amber); color:var(--plum-deep);}
+  .mode.paid{border:1px solid #b9a7ae; color:#c9b7be;}
+  /* 2 quick-facts */
+  .facts{background:#f6e2cb; color:#7a5a34; font-size:13px; padding:6px 14px; flex:0 0 auto;}
+  /* 3 status */
+  .status{background:#f3ede4; color:#6f6a63; font-size:12px; padding:5px 14px; flex:0 0 auto;}
+  /* 4 play */
+  .stage{position:relative; flex:1 1 auto; min-height:0; background:#000; display:flex;}
+  canvas{display:block; margin:auto; image-rendering:pixelated; touch-action:none;
+          max-width:100%; max-height:100%;}
+  .overlay{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+           text-align:center; padding:20px; pointer-events:none;}
+  .card{background:rgba(253,243,231,.96); border-radius:16px; padding:18px 20px; max-width:300px;
+        pointer-events:auto; box-shadow:0 0 0 1px rgba(95,76,87,.15);}
+  .card.win{box-shadow:0 0 0 3px var(--amber);}
+  .card h2{font-family:var(--disp); font-size:26px; margin:0 0 6px;}
+  .card p{font-size:13px; margin:6px 0 14px; color:var(--plum);}
+  .btn{font-family:var(--disp); font-size:18px; background:var(--plum); color:#fff; border:none;
+       border-radius:10px; padding:9px 22px; cursor:pointer;}
+  .btn:active{background:var(--plum-deep);}
+  .btn:disabled{opacity:.5; cursor:default;}
+  .hidden{display:none !important;}
+  /* 5 action bar */
+  .actions{flex:0 0 auto; background:var(--peach); padding:8px 14px;
+           display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:66px;}
+  .startwrap{display:flex; flex-direction:column; gap:2px;}
+  .hint{font-size:10px; color:var(--muted);}
+  .dpad{display:grid; grid-template-columns:repeat(3,40px); grid-template-rows:repeat(3,34px); gap:4px;}
+  .dpad button{border:1px solid #cdbcae; background:#f3ede4; border-radius:8px; color:var(--plum);
+    font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center;}
+  .dpad button:active,.dpad button.on{background:var(--amber); color:var(--plum-deep);}
+  .dpad .up{grid-area:1/2/2/3;} .dpad .left{grid-area:2/1/3/2;}
+  .dpad .down{grid-area:3/2/4/3;} .dpad .right{grid-area:2/3/3/4;}
+  .ctrls{display:flex; align-items:center; gap:10px;}
+  .fire{width:52px; height:52px; border-radius:50%; border:none; background:var(--amber);
+        color:var(--plum-deep); font-family:var(--disp); font-size:15px; cursor:pointer;}
+  .fire:active,.fire.on{background:#d98322;}
+  /* 6 footer */
+  .footer{flex:0 0 auto; background:#f6ecdd; text-align:center; padding:7px 10px 9px;}
+  .footer .tag{font-family:var(--disp); font-size:13px; color:#7a5a34;}
+  .footer .links{font-size:12px; margin-top:2px;}
+  .footer a{color:var(--muted); text-decoration:none; margin:0 6px;}
+  .footer a:hover{color:var(--plum);}
+  .rules{position:absolute; inset:0; background:rgba(62,50,58,.55); display:flex;
+         align-items:center; justify-content:center; padding:20px; z-index:5;}
+  .rules .card{max-width:320px; text-align:left;}
+  .rules ul{margin:8px 0 14px; padding-left:18px; font-size:13px; color:var(--plum);}
+  .rules li{margin:3px 0;}
+  /* ---- Paid layer (adapted from live Rush; wallet LOGIC stays dead until Paid chosen) ---- */
+  .testBanner{flex:0 0 auto; background:var(--amber); color:#4a2c10; font-weight:700; text-align:center;
+              font-size:12px; padding:5px 10px;}
+  .testBanner.hidden{display:none;}
+  .modebar{display:flex; gap:6px; margin-top:8px; background:rgba(255,255,255,.14); border-radius:12px; padding:3px;}
+  .modepill{flex:1; appearance:none; border:none; cursor:pointer; font-family:var(--disp); font-size:14px;
+            padding:5px 10px; border-radius:10px; background:transparent; color:#e7d7de;}
+  .modepill.active{background:var(--amber); color:var(--plum-deep);}
+  .modepill:disabled{opacity:.5; cursor:default;}
+  .walletbar{flex:0 0 auto; background:#f3ede4; padding:7px 14px; display:none; flex-direction:column; gap:5px;}
+  body.mode-paid .walletbar{display:flex;}
+  .walletrow{display:flex; align-items:center; gap:8px;}
+  .walletrow .lbl{font-weight:600; font-size:12px; color:#6f6a63; flex:1;}
+  .connect-btn{appearance:none; border:none; cursor:pointer; font-family:var(--disp); font-size:14px;
+               background:var(--plum); color:#fff; padding:6px 16px; border-radius:9px;}
+  .connect-btn:disabled{opacity:.6; cursor:default;}
+  .wallet-status{font-size:12px; color:var(--muted);}
+  .wallet-status.hidden{display:none;}
+  .wallet-status.ok{color:var(--plum-deep);} .wallet-status.warn{color:var(--red);}
+  .wallet-status .addr{font-family:ui-monospace,monospace; color:var(--plum);}
+  .sheet{position:fixed; inset:0; background:rgba(62,50,58,.6); display:none; align-items:center;
+         justify-content:center; padding:18px; z-index:80;}
+  .sheet.show{display:flex;}
+  .panel{width:100%; max-width:320px; background:var(--peach); border-radius:16px; padding:22px;
+         box-shadow:0 8px 30px rgba(62,50,58,.35); text-align:center;}
+  .panel h2{font-family:var(--disp); font-size:24px; margin:0 0 8px;}
+  .panel p{font-size:13px; color:var(--plum); margin:0 0 14px;} .panel p b{color:var(--plum-deep);}
+  .panel .again{appearance:none; border:none; cursor:pointer; font-family:var(--disp); font-size:16px;
+        background:var(--amber); color:#4a2c10; padding:11px 22px; border-radius:10px; display:block;
+        width:100%; margin-bottom:8px;}
+  .panel .ghostbtn{appearance:none; border:1px solid var(--line); cursor:pointer; font-family:var(--body);
+        font-weight:600; font-size:14px; background:transparent; color:var(--plum); padding:9px 18px;
+        border-radius:10px; display:block; width:100%; box-sizing:border-box; text-decoration:none; margin-bottom:8px;}
+  .panel .ghostbtn:last-child{margin-bottom:0;}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="eyebrow">FINNBOTS · WORKSHOP</div>
+    <div class="titlerow">
+      <h1 class="title">Mr Bot</h1>
+      <button class="info" id="infoBtn" aria-label="How to play">i</button>
+    </div>
+    <div class="modebar" role="tablist">
+      <button class="modepill active" id="modeFree" type="button" role="tab">Free play</button>
+      <button class="modepill" id="modePaid" type="button" role="tab">Paid · 25 OIL</button>
+    </div>
+  </header>
+
+  <div class="testBanner hidden" id="testBanner">🧪 TEST MODE — local validator, fake $OIL. No real value moves.</div>
+
+  <div class="walletbar" id="walletbar">
+    <div class="walletrow">
+      <span class="lbl">Paid — 25 OIL entry · fun leaderboard, not verified</span>
+      <button class="connect-btn" id="connectBtn" type="button">Connect</button>
+    </div>
+    <div class="wallet-status hidden" id="walletStatus"></div>
+  </div>
+
+  <div class="facts">Free · no wallet · fetch the 3 parts · spray OIL to stun</div>
+  <div class="status">Playing free — wallet not used</div>
+
+  <div class="stage" id="stage">
+    <canvas id="game" width="320" height="480" aria-label="Mr Bot kitchen"></canvas>
+    <div class="overlay" id="overlay">
+      <div class="card" id="startCard">
+        <h2>Mr Bot</h2>
+        <p>Fetch the three parts and carry each to the larder. Mind the manholes and Ticker.</p>
+        <button class="btn" id="startBtn">Start shift</button>
+      </div>
+    </div>
+    <div class="rules hidden" id="rulesModal">
+      <div class="card">
+        <h2>How to play</h2>
+        <ul>
+          <li>Move with the arrows or the on-screen pad.</li>
+          <li>Up / down climb ladders when you line up with one.</li>
+          <li>Walk onto a part to carry it — one at a time.</li>
+          <li>Take it to the larder (top-left) to drop it off.</li>
+          <li>Head, Body and Arms delivered = shift fetched.</li>
+          <li>Spray $OIL (fire / space / the OIL button) to freeze a Ticker briefly.</li>
+          <li>Open manholes and the Tickers cost a life. You have 3.</li>
+        </ul>
+        <button class="btn" id="rulesClose">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <div class="startwrap">
+      <button class="btn" id="startBtn2">Start shift</button>
+      <span class="hint">arrows / WASD · pad · OIL sprays →</span>
+    </div>
+    <div class="ctrls">
+      <button class="fire" id="fireBtn" aria-label="Spray OIL">OIL</button>
+      <div class="dpad" id="dpad" aria-hidden="false">
+      <button class="up" data-dir="up" aria-label="Up">▲</button>
+      <button class="left" data-dir="left" aria-label="Left">◀</button>
+      <button class="down" data-dir="down" aria-label="Down">▼</button>
+      <button class="right" data-dir="right" aria-label="Right">▶</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="tag">a FinnBots game</div>
+    <div class="links">
+      <a href="https://magiceden.io/marketplace/finnbot" target="_blank" rel="noopener">Buy a Bot</a>·
+      <a href="https://games.finnstergram.com/" target="_blank" rel="noopener">More games</a>
+    </div>
+  </footer>
+</div>
+
+<!-- Kid-safety gate: shown BEFORE any wallet code runs -->
+<div class="sheet" id="confirmSheet"><div class="panel">
+  <h2>Play Mr Bot — Paid</h2>
+  <p>One entry = one run. Costs <b>25 OIL</b> to the treasury (a sink). Pays nothing out — you're playing for a leaderboard spot. Bot holders: score ×1.5.<br/><br/>A <b>fun ranking</b> — not verified.</p>
+  <button class="again" id="confirmEnter" type="button">Connect &amp; Pay</button>
+  <button class="ghostbtn" id="confirmBack" type="button">Cancel</button>
+</div></div>
+
+<div class="sheet" id="postedSheet"><div class="panel">
+  <h2>Score posted!</h2>
+  <p id="posted-text"></p>
+  <a class="ghostbtn" id="viewLb" href="https://mrbot.finnstergram.com/leaderboard.html" target="_blank" rel="noopener">View leaderboard →</a>
+  <button class="again" id="againBtn" type="button">Play again (25 OIL)</button>
+</div></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // --- Cam sprite: Bot #106 (brand PFP). Confirm/replace with Pick-a-Bot's exact URL. ---
+  var BOT_106_IMG = "https://arweave.net/_cPSCheRvzVBlZK7QwM-3nXtteMdBbUn-zJhbGRlMmo/106.png";
+  var camImg = new Image(); var camReady = false;
+  camImg.crossOrigin = "anonymous";
+  camImg.onload = function(){ camReady = true; };
+  camImg.onerror = function(){ camReady = false; };
+  if (BOT_106_IMG) camImg.src = BOT_106_IMG;
+
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  var cv = document.getElementById("game");
+  var ctx = cv.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+  var VW = 320, VH = 480;
+
+  // fit canvas to its container, preserving aspect
+  function fit(){
+    var st = document.getElementById("stage");
+    var w = st.clientWidth, h = st.clientHeight;
+    var s = Math.min(w / VW, h / VH);
+    cv.style.width = Math.floor(VW * s) + "px";
+    cv.style.height = Math.floor(VH * s) + "px";
+  }
+  window.addEventListener("resize", fit);
+
+  // ---- world ----
+  var HUD_H = 34;
+  var XMIN = 26, XMAX = 294;
+  var FLOOR_Y = [140, 218, 296, 374, 452]; // top .. bottom (walk lines)
+  var GROUND_Y = 462;
+  var LADDERS = [
+    { x:90,  up:0, dn:1 }, { x:250, up:0, dn:1 },
+    { x:160, up:1, dn:2 },
+    { x:90,  up:2, dn:3 }, { x:240, up:2, dn:3 },
+    { x:120, up:3, dn:4 }, { x:260, up:3, dn:4 }
+  ];
+  var LARDER = { floor:0, x:40, w:40 };
+
+  // ===== Stack (workshop) screen data =====
+  var SR = [76,126,176,226,276,326];     // ingredient platform levels 0..5 (staggered)
+  var SPLATE = 400;                       // plate line (below level 5)
+  var SPLATE_LVL = 6;                     // reaching this = on the plate
+  var SCX = [64,128,192,256], SBW = 56, SSEG = 14;
+  var SLAYOUT = [ [0,1,2,4], [1,2,3,5], [0,2,3,4], [1,3,4,5] ]; // per-column ingredient levels
+  var sLadders = [
+    { x:48,  up:0, dn:1 }, { x:208, up:0, dn:1 },
+    { x:112, up:1, dn:2 }, { x:272, up:1, dn:2 },
+    { x:48,  up:2, dn:3 }, { x:160, up:2, dn:3 },
+    { x:112, up:3, dn:4 }, { x:240, up:3, dn:4 },
+    { x:48,  up:4, dn:5 }, { x:208, up:4, dn:5 }
+  ];
+  var SPT = [ {t:"H",col:"#f2a03d",tc:"#3e323a"}, {t:"B",col:"#6f95d8",tc:"#20304a"},
+              {t:"A",col:"#7cc4a0",tc:"#173a2a"}, {t:"O",col:"#e879a6",tc:"#5a1d3a"} ];
+  var sIng = [], sPlated = [0,0,0,0], sCam = null;
+  var sEnemies = [];
+  var SENEMY = [ {k:"Sid",c:"#e24b4a"}, {k:"Ogy",c:"#a97fd0"}, {k:"Sam",c:"#5aa0e0"}, {k:"Pam",c:"#e0a03a"} ];
+  var SSPAWN = [ {x:36,level:0}, {x:284,level:0}, {x:36,level:2}, {x:284,level:2} ];
+
+  function partDefs(){
+    return [
+      { type:"H", label:"H", col:"#f2a03d", tcol:"#3e323a", floor:0, x:260 },
+      { type:"B", label:"B", col:"#6f95d8", tcol:"#20304a", floor:2, x:255 },
+      { type:"A", label:"A", col:"#7cc4a0", tcol:"#173a2a", floor:4, x:60  }
+    ];
+  }
+
+  var state, cam, tickers, manholes, parts, keys, shiftN, score, hsc, lives, bonus, invuln, carriedFx;
+  var runStartMs = 0;   // Paid layer: stamped at run start, read at game over for the score memo
+  var squirts=3, squirtMax=3, squirtRegen=0, sprayFx=0, sprayDir=1, sprayFloor=0, sprayX=0, firePressed=false;
+  var screen = "fetch";
+  try { hsc = parseInt(localStorage.getItem("mrbot_hsc") || "0", 10) || 0; } catch(e){ hsc = 0; }
+
+  function newManholes(){
+    var speed = 1 + (shiftN - 1) * 0.12;     // manholes cycle a little faster each shift
+    function mk(floor, x){
+      return { floor:floor, x:x, w:30, open:Math.random(), dir:1, spd:(0.006 + Math.random()*0.002) * speed,
+               wait: 70, t: Math.random()*140 };
+    }
+    return [ mk(1, 210), mk(3, 175) ];
+  }
+
+  function resetCam(){
+    cam = { x:40, floor:4, y:FLOOR_Y[4], climbing:false, ladder:null, cy:0, carrying:null, dir:1, w:20, h:26 };
+  }
+
+  function startGame(){
+    shiftN = 1; score = 0; lives = 3;
+    runStartMs = Date.now();
+    screen = "fetch";
+    startShift();
+    state = "play";
+    hideOverlay();
+    fit();
+  }
+  function startShift(){
+    parts = partDefs();
+    manholes = newManholes();
+    resetCam();
+    var tspeed = 0.5 + (shiftN - 1) * 0.06;   // Tickers a little faster each shift
+    tickers = [
+      { x:100, floor:1, y:FLOOR_Y[1], climbing:false, ladder:null, cy:0, spd:tspeed, w:20, h:22, mode:"seek", mtimer:0,   wdir:1,  frozen:0 },
+      { x:160, floor:2, y:FLOOR_Y[2], climbing:false, ladder:null, cy:0, spd:tspeed, w:20, h:22, mode:"seek", mtimer:70,  wdir:-1, frozen:0 },
+      { x:230, floor:3, y:FLOOR_Y[3], climbing:false, ladder:null, cy:0, spd:tspeed, w:20, h:22, mode:"seek", mtimer:130, wdir:1,  frozen:0 }
+    ];
+    bonus = 500; invuln = 0; carriedFx = 0;
+    squirts = squirtMax; squirtRegen = 0; sprayFx = 0;
+    keys = { up:false, down:false, left:false, right:false };
+  }
+
+  // ---- input ----
+  function doFire(){
+    if(state !== "play" || squirts <= 0) return;
+    var C, arr;
+    if(screen === "fetch"){ C = cam; arr = tickers; }
+    else if(screen === "stack"){ C = sCam; arr = sEnemies; }
+    else return;
+    squirts--; sprayFx = 16; sprayDir = C.dir; sprayFloor = C.floor; sprayX = C.x;
+    for(var i=0;i<arr.length;i++){ var t = arr[i];
+      if(screen === "stack" && t.state !== "walk") continue;
+      var lvl = (screen === "fetch") ? t.floor : t.level;
+      if(lvl === C.floor){ var dx = t.x - C.x;
+        if((C.dir > 0 && dx > 0 && dx < 54) || (C.dir < 0 && dx < 0 && -dx < 54)){ t.frozen = 150; } }
+    }
+  }
+  var KMAP = { ArrowUp:"up", ArrowDown:"down", ArrowLeft:"left", ArrowRight:"right",
+               w:"up", s:"down", a:"left", d:"right", W:"up", S:"down", A:"left", D:"right" };
+  var FIRE_KEYS = { " ":1, Spacebar:1, f:1, F:1, k:1, K:1 };
+  window.addEventListener("keydown", function(e){
+    if(FIRE_KEYS[e.key]){ if(!firePressed){ firePressed = true; doFire(); } e.preventDefault(); return; }
+    var k = KMAP[e.key]; if(k){ keys[k]=true; e.preventDefault(); }
+  });
+  window.addEventListener("keyup", function(e){
+    if(FIRE_KEYS[e.key]){ firePressed = false; e.preventDefault(); return; }
+    var k = KMAP[e.key]; if(k){ keys[k]=false; e.preventDefault(); }
+  });
+  // dpad
+  var dpad = document.getElementById("dpad");
+  Array.prototype.forEach.call(dpad.querySelectorAll("button"), function(b){
+    var dir = b.getAttribute("data-dir");
+    function on(ev){ ev.preventDefault(); keys[dir]=true; b.classList.add("on"); }
+    function off(ev){ ev.preventDefault(); keys[dir]=false; b.classList.remove("on"); }
+    b.addEventListener("pointerdown", on);
+    b.addEventListener("pointerup", off);
+    b.addEventListener("pointerleave", off);
+    b.addEventListener("pointercancel", off);
+  });
+  var fireBtn = document.getElementById("fireBtn");
+  function fireOn(ev){ ev.preventDefault(); doFire(); fireBtn.classList.add("on"); }
+  function fireOff(ev){ ev.preventDefault(); fireBtn.classList.remove("on"); }
+  fireBtn.addEventListener("pointerdown", fireOn);
+  fireBtn.addEventListener("pointerup", fireOff);
+  fireBtn.addEventListener("pointerleave", fireOff);
+  fireBtn.addEventListener("pointercancel", fireOff);
+
+  // ---- helpers ----
+  function nearLadder(x, floor, wantUp){
+    for(var i=0;i<LADDERS.length;i++){
+      var L = LADDERS[i];
+      if(Math.abs(x - L.x) < 10){
+        if(wantUp && L.dn === floor) return L;      // ladder goes up from this floor
+        if(!wantUp && L.up === floor) return L;      // ladder goes down from this floor
+      }
+    }
+    return null;
+  }
+  function overOpenManhole(x, floor){
+    for(var i=0;i<manholes.length;i++){
+      var m = manholes[i];
+      if(m.floor === floor && m.open > 0.5 && Math.abs(x - m.x) < m.w/2 - 2) return true;
+    }
+    return false;
+  }
+
+  // ---- update ----
+  function update(dt){ if(screen === "stack") updateStack(dt); else updateFetch(dt); }
+  function updateFetch(dt){
+    // manholes state cycle: 0 (closed) -> 1 (open) -> 0, with a wait at each end
+    for(var i=0;i<manholes.length;i++){
+      var m = manholes[i];
+      m.t += 1;
+      if(m.dir === 1){ m.open += m.spd; if(m.open >= 1){ m.open = 1; if(m.t > m.wait){ m.dir = -1; m.t = 0; } } }
+      else { m.open -= m.spd; if(m.open <= 0){ m.open = 0; if(m.t > m.wait){ m.dir = 1; m.t = 0; } } }
+    }
+    if(invuln > 0) invuln--;
+    if(carriedFx > 0) carriedFx--;
+    if(sprayFx > 0) sprayFx--;
+    squirtRegen++; if(squirts < squirtMax && squirtRegen > 600){ squirts++; squirtRegen = 0; }
+
+    // bonus countdown
+    bonus -= 0.35; if(bonus < 0) bonus = 0;
+
+    // --- Cam ---
+    if(cam.climbing){
+      var tgtY = FLOOR_Y[cam.ladder.tgtFloor];
+      var vy = (cam.ladder.tgtFloor < cam.floor) ? -1.4 : 1.4;
+      cam.y += vy;
+      cam.x = cam.ladder.x;
+      if((vy < 0 && cam.y <= tgtY) || (vy > 0 && cam.y >= tgtY)){
+        cam.y = tgtY; cam.floor = cam.ladder.tgtFloor; cam.climbing = false; cam.ladder = null;
+      }
+    } else {
+      var sp = 1.7;
+      if(keys.left){ cam.x -= sp; cam.dir = -1; }
+      if(keys.right){ cam.x += sp; cam.dir = 1; }
+      if(cam.x < XMIN) cam.x = XMIN; if(cam.x > XMAX) cam.x = XMAX;
+      if(keys.up){ var Lu = nearLadder(cam.x, cam.floor, true); if(Lu){ cam.climbing=true; cam.ladder={x:Lu.x, tgtFloor:Lu.up}; } }
+      if(keys.down){ var Ld = nearLadder(cam.x, cam.floor, false); if(Ld){ cam.climbing=true; cam.ladder={x:Ld.x, tgtFloor:Ld.dn}; } }
+      cam.y = FLOOR_Y[cam.floor];
+      // manhole death
+      if(invuln===0 && overOpenManhole(cam.x, cam.floor)){ hit(); }
+      // pickup
+      if(!cam.carrying){
+        for(var p=0;p<parts.length;p++){
+          var pt = parts[p];
+          if(!pt.picked && !pt.delivered && pt.floor === cam.floor && Math.abs(pt.x - cam.x) < 16){
+            pt.picked = true; cam.carrying = pt; carriedFx = 30;
+          }
+        }
+      }
+      // deliver
+      if(cam.carrying && cam.floor === LARDER.floor && Math.abs(cam.x - (LARDER.x + LARDER.w/2)) < 24){
+        cam.carrying.delivered = true; cam.carrying.picked = false; cam.carrying = null;
+        var done = parts.every(function(q){ return q.delivered; });
+        if(done) shiftClear();
+      }
+    }
+
+    // --- Tickers seek ---
+    for(var ti=0; ti<tickers.length; ti++){
+    var tk = tickers[ti];
+    if(tk.frozen > 0){ tk.frozen--; continue; }
+    if(tk.climbing){
+      var ty = FLOOR_Y[tk.ladder.tgtFloor];
+      var tvy = (tk.ladder.tgtFloor < tk.floor) ? -1.1 : 1.1;
+      tk.y += tvy; tk.x = tk.ladder.x;
+      if((tvy<0 && tk.y<=ty) || (tvy>0 && tk.y>=ty)){ tk.y=ty; tk.floor=tk.ladder.tgtFloor; tk.climbing=false; tk.ladder=null; }
+    } else {
+      tk.y = FLOOR_Y[tk.floor];
+      tk.mtimer = (tk.mtimer||0) + 1;
+      if(tk.mode !== "wander" && tk.mtimer > 130){ tk.mode = "wander"; tk.mtimer = 0; tk.wdir = (cam.x < tk.x ? 1 : -1); }
+      else if(tk.mode === "wander" && tk.mtimer > 85){ tk.mode = "seek"; tk.mtimer = 0; }
+      if(tk.mode === "wander"){
+        tk.x += (tk.wdir||1) * tk.spd;
+        if(tk.x <= XMIN + 2) tk.wdir = 1; if(tk.x >= XMAX - 2) tk.wdir = -1;
+      } else if(tk.floor === cam.floor){
+        tk.x += (cam.x > tk.x ? tk.spd : -tk.spd);
+      } else {
+        var wantUp = cam.floor < tk.floor;
+        var best = null, bd = 1e9;
+        for(var l=0;l<LADDERS.length;l++){
+          var L = LADDERS[l];
+          var ok = wantUp ? (L.dn === tk.floor) : (L.up === tk.floor);
+          if(ok){ var d = Math.abs(L.x - tk.x); if(d < bd){ bd = d; best = L; } }
+        }
+        if(best){
+          if(Math.abs(best.x - tk.x) > 2){ tk.x += (best.x > tk.x ? tk.spd : -tk.spd); }
+          else { tk.climbing = true; tk.ladder = { x:best.x, tgtFloor:(wantUp ? best.up : best.dn) }; }
+        }
+      }
+      if(tk.x < XMIN) tk.x = XMIN; if(tk.x > XMAX) tk.x = XMAX;
+      if(invuln===0 && tk.floor===cam.floor && Math.abs(tk.x-cam.x) < 12){ hit(); }
+    }
+    }
+  }
+
+  function hit(){
+    lives--; invuln = 90;
+    if(cam.carrying){ cam.carrying.picked = false; cam.carrying = null; } // dropped part returns to spawn
+    if(lives <= 0){ gameOver(); }
+    else { resetCam();
+      tickers[0].x=100; tickers[0].floor=1; tickers[0].y=FLOOR_Y[1]; tickers[0].climbing=false; tickers[0].ladder=null;
+      tickers[1].x=160; tickers[1].floor=2; tickers[1].y=FLOOR_Y[2]; tickers[1].climbing=false; tickers[1].ladder=null;
+      tickers[2].x=230; tickers[2].floor=3; tickers[2].y=FLOOR_Y[3]; tickers[2].climbing=false; tickers[2].ladder=null;
+      tickers[0].frozen=0; tickers[1].frozen=0; tickers[2].frozen=0;
+    }
+  }
+
+  function shiftClear(){
+    score += 300 + Math.round(bonus);
+    if(score > hsc){ hsc = score; try{ localStorage.setItem("mrbot_hsc", String(hsc)); }catch(e){} }
+    banner("Parts fetched! \u2192 workshop", "win", function(){ startStack(); state = "play"; });
+  }
+  function gameOver(){
+    if(score > hsc){ hsc = score; try{ localStorage.setItem("mrbot_hsc", String(hsc)); }catch(e){} }
+    state = "over";
+    // Paid layer: if a paid run is armed, hand the result to the controller and let it drive the post-run UI.
+    if(window.MrBotPaid && MrBotPaid.onRunEnd &&
+       MrBotPaid.onRunEnd({ rounds: Math.max(0, shiftN - 1), timeMs: Date.now() - runStartMs, score: score })) return;
+    banner("Game over", "", function(){ begin(); });
+  }
+
+  // ---- overlays ----
+  var overlay = document.getElementById("overlay");
+  var startCard = document.getElementById("startCard");
+  function hideOverlay(){ overlay.classList.add("hidden"); }
+  function banner(title, cls, cb){
+    state = "banner";
+    overlay.classList.remove("hidden");
+    overlay.innerHTML = '<div class="card '+cls+'"><h2>'+title+'</h2>'+
+      '<p>Score '+score+' · High '+hsc+' · Shift '+shiftN+'</p>'+
+      '<button class="btn" id="contBtn">'+(cls==="win"?"Next shift":"Play again")+'</button></div>';
+    document.getElementById("contBtn").addEventListener("click", function(){
+      overlay.classList.add("hidden"); cb();
+    }, { once:true });
+  }
+
+  // ---- draw ----
+  function rrect(x,y,w,h,r){ ctx.beginPath();
+    ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+  function brickRow(x,y,w){
+    ctx.fillStyle = "#c0392b"; ctx.fillRect(x,y,w,10);
+    ctx.strokeStyle = "rgba(232,217,200,.5)"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x,y+5); ctx.lineTo(x+w,y+5); ctx.stroke();
+  }
+  function ladder(L, y0, y1){
+    ctx.strokeStyle = "#8a8296"; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(L.x-5,y0); ctx.lineTo(L.x-5,y1);
+    ctx.moveTo(L.x+5,y0); ctx.lineTo(L.x+5,y1); ctx.stroke();
+    for(var yy=y0+8; yy<y1; yy+=12){ ctx.beginPath(); ctx.moveTo(L.x-5,yy); ctx.lineTo(L.x+5,yy); ctx.stroke(); }
+  }
+  function partTile(x,y,col,tcol,label){
+    ctx.fillStyle = col; rrect(x-14,y-8,28,14,3); ctx.fill();
+    ctx.fillStyle = tcol;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = '12px "Jersey 15", monospace';
+    ctx.fillText(label, x, y);
+  }
+
+  function draw(){ if(screen === "stack") drawStack(); else drawFetch(); }
+  function drawFetch(){
+    ctx.clearRect(0,0,VW,VH);
+    // play bg
+    ctx.fillStyle = "#000"; ctx.fillRect(0,0,VW,VH);
+    // side pillars
+    ctx.fillStyle = "#123fd6"; ctx.fillRect(0,HUD_H,20,VH-HUD_H); ctx.fillRect(VW-20,HUD_H,20,VH-HUD_H);
+
+    // floors (brick) between pillars, with manhole gaps drawn after
+    for(var f=0; f<FLOOR_Y.length; f++){ brickRow(20, FLOOR_Y[f], VW-40); }
+
+    // manholes
+    for(var i=0;i<manholes.length;i++){
+      var m = manholes[i]; var y = FLOOR_Y[m.floor];
+      if(m.open > 0.02){
+        var gw = m.w * Math.min(1, m.open);
+        ctx.fillStyle = "#000"; ctx.fillRect(m.x - gw/2, y-1, gw, 12);
+        ctx.strokeStyle = "#e2b93f"; ctx.lineWidth = 1;
+        ctx.strokeRect(m.x - m.w/2, y-1, m.w, 12);
+      } else {
+        ctx.fillStyle = "#9c2f22"; ctx.fillRect(m.x - m.w/2, y, m.w, 10);
+      }
+    }
+
+    // ladders
+    for(var li=0; li<LADDERS.length; li++){ ladder(LADDERS[li], FLOOR_Y[LADDERS[li].up], FLOOR_Y[LADDERS[li].dn]); }
+
+    // larder
+    ctx.fillStyle = (cam && cam.carrying) ? "#e6dfe8" : "#cfc9d4";
+    rrect(LARDER.x, FLOOR_Y[0]-20, LARDER.w, 20, 3); ctx.fill();
+    if(cam && cam.carrying){ ctx.strokeStyle = "var(--amber)"; ctx.strokeStyle = "#f2a03d"; ctx.lineWidth = 2;
+      rrect(LARDER.x, FLOOR_Y[0]-20, LARDER.w, 20, 3); ctx.stroke(); }
+    ctx.fillStyle = "#cbb27a"; ctx.font = '9px "Jersey 15", monospace'; ctx.textAlign="left"; ctx.textBaseline="alphabetic";
+    ctx.fillText("LARDER", LARDER.x-2, FLOOR_Y[0]-24);
+
+    // parts on the floor (if not picked/delivered)
+    for(var p=0;p<parts.length;p++){
+      var pt = parts[p];
+      if(!pt.picked && !pt.delivered){ partTile(pt.x, FLOOR_Y[pt.floor]-8, pt.col, pt.tcol, pt.label); }
+    }
+
+    // Tickers
+    for(var di=0; di<tickers.length; di++){ drawTicker(tickers[di]); }
+    // Cam
+    drawCam(cam);
+
+    // OIL spray puff
+    if(sprayFx > 0){
+      var sy = FLOOR_Y[sprayFloor] - 10;
+      for(var sp2=0; sp2<3; sp2++){
+        var sx = sprayX + sprayDir * (16 + sp2*14);
+        ctx.fillStyle = (sp2 % 2 === 0) ? "#f07cc0" : "#f2a03d";
+        ctx.beginPath(); ctx.arc(sx, sy, 5 - sp2, 0, Math.PI*2); ctx.fill();
+      }
+    }
+
+    // HUD
+    drawHud();
+
+    // invuln flash
+    if(invuln>0 && !reduce && (Math.floor(invuln/6)%2===0)){
+      ctx.fillStyle = "rgba(255,255,255,.06)"; ctx.fillRect(0,HUD_H,VW,VH-HUD_H);
+    }
+  }
+
+  function drawCam(c){
+    if(!c) return;
+    var x = c.x, y = c.y;
+    if(invuln>0 && Math.floor(invuln/5)%2===0){ /* blink */ }
+    if(camReady){
+      ctx.drawImage(camImg, x-11, y-24, 22, 24);
+    } else {
+      ctx.fillStyle = "#f2c14e"; rrect(x-10, y-24, 20, 24, 4); ctx.fill();
+      ctx.fillStyle = "#3e323a"; ctx.fillRect(x-6, y-17, 4,4); ctx.fillRect(x+2, y-17, 4,4);
+    }
+    // carried part above head
+    if(c.carrying){
+      partTile(x, y-32, c.carrying.col, c.carrying.tcol, c.carrying.label);
+    }
+  }
+  function drawTicker(t){
+    if(!t) return;
+    var frozen = t.frozen > 0;
+    ctx.fillStyle = frozen ? "#bfeff2" : "#3fd0d8"; rrect(t.x-10, t.y-22, 20, 22, 8); ctx.fill();
+    ctx.fillStyle = "#0c5a60"; ctx.fillRect(t.x-5, t.y-15, 3,3); ctx.fillRect(t.x+2, t.y-15, 3,3);
+    ctx.strokeStyle = "#0c5a60"; ctx.lineWidth=1; ctx.beginPath();
+    ctx.arc(t.x, t.y-9, 4, 0, frozen ? Math.PI*2 : Math.PI); ctx.stroke();
+    if(frozen){ ctx.strokeStyle = "#eafaff"; ctx.beginPath();
+      ctx.moveTo(t.x-8,t.y-24); ctx.lineTo(t.x-4,t.y-20); ctx.moveTo(t.x+8,t.y-24); ctx.lineTo(t.x+4,t.y-20); ctx.stroke(); }
+  }
+  function drawHud(){
+    ctx.fillStyle = "#000"; ctx.fillRect(0,0,VW,HUD_H);
+    ctx.textBaseline = "middle"; ctx.textAlign = "left";
+    ctx.fillStyle = "#fff"; ctx.font = '13px "Jersey 15", monospace';
+    ctx.fillText("SC " + String(score).padStart(5,"0"), 8, 12);
+    ctx.fillText("HI " + String(hsc).padStart(5,"0"), 92, 12);
+    ctx.fillStyle = "#f2a03d";
+    ctx.fillText("BONUS " + String(Math.round(bonus)).padStart(3,"0"), 8, 27);
+    // OIL squirt meter
+    ctx.fillStyle = "#f2b6d2"; ctx.fillText("OIL", 96, 27);
+    for(var q=0;q<squirtMax;q++){ ctx.fillStyle = (q < squirts) ? "#f07cc0" : "#5a3a4a"; ctx.fillRect(122 + q*10, 23, 7, 9); }
+    // lives top-right
+    for(var i=0;i<lives;i++){ var lx = VW - 12 - i*12; ctx.fillStyle = "#f2c14e"; rrect(lx-4, 6, 9, 12, 2); ctx.fill(); }
+    ctx.fillStyle = "#c9c2d4"; ctx.font = '10px "Jersey 15", monospace'; ctx.textAlign="right";
+    ctx.fillText("shift " + shiftN, VW - 12, 27); ctx.textAlign = "left";
+  }
+
+  // ---- loop ----
+  // ===== Stack screen logic (faithful BurgerTime) =====
+  function startStack(){
+    screen = "stack";
+    sPlated = [0,0,0,0]; sIng = [];
+    for(var c=0;c<SCX.length;c++){
+      for(var k=0;k<4;k++){
+        var lvl = SLAYOUT[c][k];
+        sIng.push({ col:c, level:lvl, x:SCX[c]-SBW/2, y:SR[lvl], state:"rest", seg:[false,false,false,false], def:SPT[k] });
+      }
+    }
+    sCam = { x:SCX[0]-20, floor:5, y:SR[5], climbing:false, ladder:null, dir:1 };
+    var necount = Math.min(4, 1 + shiftN);
+    sEnemies = [];
+    for(var e=0;e<necount;e++){
+      var spn = SSPAWN[e % SSPAWN.length], kd = SENEMY[e % SENEMY.length];
+      sEnemies.push({ x:spn.x, level:spn.level, y:SR[spn.level], climbing:false, ladder:null,
+        spd:0.6 + (shiftN-1)*0.08, dir:1, state:"walk", frozen:0, resp:0,
+        mode:"seek", mtimer:e*40, wdir:1, kind:kd.k, col:kd.c, homeX:spn.x, homeLevel:spn.level });
+    }
+    invuln = 0; sprayFx = 0;
+    keys = { up:false, down:false, left:false, right:false };
+  }
+  function nearLadderStack(x, floor, up){
+    for(var i=0;i<sLadders.length;i++){ var L=sLadders[i];
+      if(Math.abs(x-L.x) < 10){ if(up && L.dn===floor) return L; if(!up && L.up===floor) return L; } }
+    return null;
+  }
+  function dropIng(g){
+    if(g.state!=="rest") return;
+    g.fromLevel = g.level;
+    var riders = 0;
+    for(var e=0;e<sEnemies.length;e++){ var en=sEnemies[e];
+      if(en.state==="walk" && en.level===g.level && en.x>=g.x-6 && en.x<=g.x+SBW+6){ squashEnemy(en); riders++; } }
+    g.state="falling";
+    g.fallTo = Math.min(SPLATE_LVL, g.level + 1 + riders);
+  }
+  function squashEnemy(en){ if(en.state!=="walk") return; en.state="squashed"; en.resp=200; en.frozen=0; score += 100; }
+  function updateStack(dt){
+    if(sprayFx > 0) sprayFx--;
+    if(invuln > 0) invuln--;
+    squirtRegen++; if(squirts < squirtMax && squirtRegen > 600){ squirts++; squirtRegen = 0; }
+    var c = sCam;
+    if(c.climbing){
+      var ty = SR[c.ladder.tgt]; var vy = c.ladder.tgt < c.floor ? -1.7 : 1.7;
+      c.y += vy; c.x = c.ladder.x;
+      if((vy<0 && c.y<=ty) || (vy>0 && c.y>=ty)){ c.y=ty; c.floor=c.ladder.tgt; c.climbing=false; c.ladder=null; }
+    } else {
+      var sp = 1.7;
+      if(keys.left){ c.x -= sp; c.dir = -1; }
+      if(keys.right){ c.x += sp; c.dir = 1; }
+      if(c.x < XMIN) c.x = XMIN; if(c.x > XMAX) c.x = XMAX;
+      if(keys.up){ var Lu = nearLadderStack(c.x, c.floor, true); if(Lu){ c.climbing=true; c.ladder={x:Lu.x, tgt:Lu.up}; } }
+      if(keys.down){ var Ld = nearLadderStack(c.x, c.floor, false); if(Ld){ c.climbing=true; c.ladder={x:Ld.x, tgt:Ld.dn}; } }
+      c.y = SR[c.floor];
+      // walk across a resting ingredient on this level: flip segments; a full walk drops it ONE level
+      for(var i=0;i<sIng.length;i++){ var g=sIng[i];
+        if(g.state==="rest" && g.level===c.floor && c.x>=g.x && c.x<=g.x+SBW){
+          var si = Math.floor((c.x - g.x)/SSEG); if(si<0) si=0; if(si>3) si=3; g.seg[si]=true;
+          if(g.seg[0]&&g.seg[1]&&g.seg[2]&&g.seg[3]) dropIng(g);
+        }
+      }
+    }
+    // falling ingredients: descend one level; plate, or land + knock the one below (chain)
+    for(var i=0;i<sIng.length;i++){ var g=sIng[i];
+      if(g.state==="falling"){
+        var target = (g.fallTo >= SPLATE_LVL) ? (SPLATE - sPlated[g.col]*11) : SR[g.fallTo];
+        g.y += 4.5;
+        if(g.y >= target){
+          g.y = target;
+          for(var e2=0;e2<sEnemies.length;e2++){ var en2=sEnemies[e2];
+            if(en2.state==="walk" && en2.x>=g.x-6 && en2.x<=g.x+SBW+6 && en2.level>g.fromLevel && en2.level<=g.fallTo){ squashEnemy(en2); } }
+          if(g.fallTo >= SPLATE_LVL){
+            g.state="plated"; g.level=SPLATE_LVL; sPlated[g.col]++;
+          } else {
+            var knocked = null;
+            for(var j=0;j<sIng.length;j++){ var h=sIng[j];
+              if(h!==g && h.col===g.col && h.state==="rest" && h.level===g.fallTo){ knocked=h; break; } }
+            g.level=g.fallTo; g.state="rest"; g.seg=[false,false,false,false];
+            if(knocked){ dropIng(knocked); }   // chain reaction
+          }
+        }
+      }
+    }
+    updateStackEnemies();
+    if(sPlated[0]>=4 && sPlated[1]>=4 && sPlated[2]>=4 && sPlated[3]>=4) stackClear();
+  }
+  function stackClear(){
+    score += 1000;
+    if(score > hsc){ hsc = score; try{ localStorage.setItem("mrbot_hsc", String(hsc)); }catch(e){} }
+    banner("Bots built!", "win", function(){ shiftN++; screen="fetch"; startShift(); state="play"; });
+  }
+  function stackHit(){
+    lives--; invuln = 90;
+    if(lives <= 0){ gameOver(); return; }
+    sCam.x = SCX[0]-20; sCam.floor = 5; sCam.y = SR[5]; sCam.climbing = false; sCam.ladder = null;
+    for(var e=0;e<sEnemies.length;e++){ var en=sEnemies[e];
+      en.state="walk"; en.level=en.homeLevel; en.x=en.homeX; en.y=SR[en.level];
+      en.climbing=false; en.ladder=null; en.frozen=0; en.resp=0; en.mode="seek"; en.mtimer=e*40; }
+  }
+  function updateStackEnemies(){
+    for(var e=0;e<sEnemies.length;e++){ var en=sEnemies[e];
+      if(en.state==="squashed"){ en.resp--; if(en.resp<=0){ en.state="walk"; en.level=en.homeLevel; en.x=en.homeX; en.y=SR[en.level]; en.climbing=false; en.ladder=null; en.frozen=0; } continue; }
+      if(en.frozen>0){ en.frozen--; continue; }
+      if(en.climbing){
+        var ty=SR[en.ladder.tgt], vy=en.ladder.tgt<en.level?-1.1:1.1; en.y+=vy; en.x=en.ladder.x;
+        if((vy<0&&en.y<=ty)||(vy>0&&en.y>=ty)){ en.y=ty; en.level=en.ladder.tgt; en.climbing=false; en.ladder=null; }
+      } else {
+        en.y=SR[en.level]; en.mtimer++;
+        if(en.mode!=="wander" && en.mtimer>150){ en.mode="wander"; en.mtimer=0; en.wdir=(sCam.x<en.x?1:-1); }
+        else if(en.mode==="wander" && en.mtimer>70){ en.mode="seek"; en.mtimer=0; }
+        if(en.mode==="wander"){ en.x += (en.wdir||1)*en.spd; if(en.x<=XMIN+2)en.wdir=1; if(en.x>=XMAX-2)en.wdir=-1; }
+        else if(en.level===sCam.floor){ en.x += (sCam.x>en.x?en.spd:-en.spd); }
+        else {
+          var wantUp = sCam.floor<en.level, best=null, bd=1e9;
+          for(var l=0;l<sLadders.length;l++){ var L=sLadders[l]; var ok = wantUp?(L.dn===en.level):(L.up===en.level);
+            if(ok){ var d=Math.abs(L.x-en.x); if(d<bd){ bd=d; best=L; } } }
+          if(best){ if(Math.abs(best.x-en.x)>2){ en.x += (best.x>en.x?en.spd:-en.spd); }
+            else { en.climbing=true; en.ladder={x:best.x, tgt:(wantUp?best.up:best.dn)}; } }
+        }
+        if(en.x<XMIN)en.x=XMIN; if(en.x>XMAX)en.x=XMAX;
+        if(invuln===0 && en.level===sCam.floor && Math.abs(en.x-sCam.x)<12){ stackHit(); }
+      }
+    }
+  }
+  function drawSEnemy(en){
+    if(en.state==="squashed") return;
+    var frozen = en.frozen>0;
+    ctx.fillStyle = frozen ? "#cfe8ee" : en.col; rrect(en.x-9, en.y-20, 18, 20, 6); ctx.fill();
+    ctx.fillStyle = "#2a1420"; ctx.fillRect(en.x-4, en.y-14, 3,3); ctx.fillRect(en.x+1, en.y-14, 3,3);
+    if(frozen){ ctx.strokeStyle="#eafaff"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(en.x-7,en.y-22); ctx.lineTo(en.x-3,en.y-18); ctx.moveTo(en.x+7,en.y-22); ctx.lineTo(en.x+3,en.y-18); ctx.stroke(); }
+  }
+  function drawBar(g){
+    var top = g.y - 11;
+    ctx.fillStyle = g.def.col; ctx.fillRect(g.x, top, SBW, 11);
+    if(g.state==="rest"){ for(var k=0;k<4;k++){ if(g.seg[k]){ ctx.fillStyle="rgba(0,0,0,.30)"; ctx.fillRect(g.x+k*SSEG, top, SSEG, 11); } } }
+    ctx.strokeStyle="rgba(0,0,0,.4)"; ctx.lineWidth=0.8;
+    for(var k=1;k<4;k++){ ctx.beginPath(); ctx.moveTo(g.x+k*SSEG, top); ctx.lineTo(g.x+k*SSEG, g.y); ctx.stroke(); }
+    ctx.fillStyle=g.def.tc; ctx.font='9px "Jersey 15", monospace'; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText(g.def.t, g.x+SBW/2, top+5); ctx.textAlign="left"; ctx.textBaseline="alphabetic";
+  }
+  function drawStack(){
+    ctx.clearRect(0,0,VW,VH);
+    ctx.fillStyle="#000"; ctx.fillRect(0,0,VW,VH);
+    ctx.fillStyle="#123fd6"; ctx.fillRect(0,HUD_H,20,VH-HUD_H); ctx.fillRect(VW-20,HUD_H,20,VH-HUD_H);
+    for(var r=0;r<SR.length;r++){ brickRow(20, SR[r], VW-40); }
+    for(var cc=0;cc<SCX.length;cc++){ ctx.fillStyle="#cfc9d4"; rrect(SCX[cc]-30, SPLATE, 60, 6, 2); ctx.fill(); }
+    for(var i=0;i<sLadders.length;i++){ ladder(sLadders[i], SR[sLadders[i].up], SR[sLadders[i].dn]); }
+    for(var i=0;i<sIng.length;i++){ drawBar(sIng[i]); }
+    for(var i=0;i<sEnemies.length;i++){ drawSEnemy(sEnemies[i]); }
+    drawCam(sCam);
+    if(sprayFx > 0){ var sy = SR[sprayFloor] - 10;
+      for(var sp2=0; sp2<3; sp2++){ var sx = sprayX + sprayDir*(16+sp2*14);
+        ctx.fillStyle = (sp2%2===0)?"#f07cc0":"#f2a03d"; ctx.beginPath(); ctx.arc(sx, sy, 5-sp2, 0, Math.PI*2); ctx.fill(); } }
+    if(invuln>0 && !reduce && (Math.floor(invuln/6)%2===0)){ ctx.fillStyle="rgba(255,255,255,.06)"; ctx.fillRect(0,HUD_H,VW,VH-HUD_H); }
+    drawStackHud();
+  }
+  function drawStackHud(){
+    ctx.fillStyle="#000"; ctx.fillRect(0,0,VW,HUD_H);
+    ctx.textBaseline="middle"; ctx.textAlign="left";
+    ctx.fillStyle="#fff"; ctx.font='13px "Jersey 15", monospace';
+    ctx.fillText("SC "+String(score).padStart(5,"0"), 8, 12);
+    var bots=0; for(var c=0;c<4;c++){ if(sPlated[c]>=4) bots++; }
+    ctx.fillStyle="#f2a03d"; ctx.fillText("BOTS "+bots+"/4", 8, 27);
+    ctx.fillStyle="#f2b6d2"; ctx.fillText("WORKSHOP", 100, 12);
+    ctx.fillStyle="#f2b6d2"; ctx.fillText("OIL", 100, 27);
+    for(var q=0;q<squirtMax;q++){ ctx.fillStyle=(q<squirts)?"#f07cc0":"#5a3a4a"; ctx.fillRect(126+q*10, 23, 7, 9); }
+    for(var i=0;i<lives;i++){ var lx=VW-12-i*12; ctx.fillStyle="#f2c14e"; rrect(lx-4,6,9,12,2); ctx.fill(); }
+    ctx.fillStyle="#c9c2d4"; ctx.font='10px "Jersey 15", monospace'; ctx.textAlign="right";
+    ctx.fillText("round "+shiftN, VW-12, 27); ctx.textAlign="left";
+  }
+
+  var last = 0;
+  function frame(ts){
+    var dt = Math.min(40, ts - last); last = ts;
+    if(state === "play"){ update(dt); }
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  // ---- wire buttons ----
+  // Paid layer: in Free mode handleStart() returns false and the game starts as normal.
+  // In Paid mode it returns true (blocks a free start) and drives the 25 OIL entry flow;
+  // the paid run is then started by the controller via MrBotEngine.start() on entry confirm.
+  function begin(){ if(window.MrBotPaid && MrBotPaid.handleStart && MrBotPaid.handleStart()) return; startGame(); }
+  window.MrBotEngine = { start: startGame };
+  document.getElementById("startBtn").addEventListener("click", begin);
+  document.getElementById("startBtn2").addEventListener("click", begin);
+  var infoBtn = document.getElementById("infoBtn");
+  var rulesModal = document.getElementById("rulesModal");
+  infoBtn.addEventListener("click", function(){ rulesModal.classList.remove("hidden"); });
+  document.getElementById("rulesClose").addEventListener("click", function(){ rulesModal.classList.add("hidden"); });
+  rulesModal.addEventListener("click", function(e){ if(e.target===rulesModal) rulesModal.classList.add("hidden"); });
+
+  // init idle scene so canvas isn't blank before start
+  shiftN = 1; score = 0; lives = 3; bonus = 500; invuln = 0; carriedFx = 0;
+  squirts = 3; squirtRegen = 0; sprayFx = 0;
+  parts = partDefs(); manholes = newManholes(); resetCam();
+  tickers = [
+    { x:100, floor:1, y:FLOOR_Y[1], climbing:false, ladder:null, cy:0, spd:0.5, w:20, h:22, mode:"seek", mtimer:0,   wdir:1,  frozen:0 },
+    { x:160, floor:2, y:FLOOR_Y[2], climbing:false, ladder:null, cy:0, spd:0.5, w:20, h:22, mode:"seek", mtimer:70,  wdir:-1, frozen:0 },
+    { x:230, floor:3, y:FLOOR_Y[3], climbing:false, ladder:null, cy:0, spd:0.5, w:20, h:22, mode:"seek", mtimer:130, wdir:1,  frozen:0 }
+  ];
+  keys = { up:false, down:false, left:false, right:false };
+  state = "idle";
+  fit();
+  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(function(){ /* redraw handled by loop */ }); }
+  requestAnimationFrame(frame);
+})();
+</script>
+
+<!-- Shared wallet libs (loaded once; the wallet LOGIC stays dead until Paid is chosen — mirrors live Rush). -->
+<script src="phantom-deeplink-libs.min.js?v=20260906a"></script>
+<script src="phantom-mobile.js?v=20260906a"></script>
+<script src="solana-web3.iife.min.js?v=20260906a"></script>
+<script>
+/* ============================================================================
+ * Mr Bot — Paid layer (Chat 11.14). MRBT sink + fun leaderboard.
+ * The wallet MECHANICS below (getProvider, fetchOilBalance, buildTransferIx,
+ * buildMemoIx, confirmSignature, sendPayment, onConnect, resume) are LIFTED
+ * VERBATIM from the live Bot Merge Rush index.html — only CFG values, the
+ * MRBT memo tag / pending key / sign marker, and the score-memo shape change.
+ * The UI glue is Mr Bot's (single-run action game, not the merge board).
+ * Mr Bot is real-time and UNREPLAYABLE. The leaderboard is a FUN RANKING +
+ * an OIL SINK. It is NOT verified / provably fair. Records, does not verify.
+ * ==========================================================================*/
+(function(){
+  'use strict';
+  var mode = 'free';
+
+  function lockModeToggle(lock){
+    document.getElementById('modeFree').disabled = !!lock;
+    document.getElementById('modePaid').disabled = !!lock;
+  }
+
+  var Paid = (function(){
+    var TEST_MODE = true;    // <-- flip to false ONLY with Founder confirm in this run's output
+    var CFG = TEST_MODE ? {
+      RPC: 'http://127.0.0.1:8899',
+      TOKEN_PROGRAM: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+      MEMO_PROGRAM: 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr',
+      OIL_MINT: '9B5ZQifZQc3ykhnZhA9m8DFoNY5uaTwqHGNZMah6eK8Y',
+      TREASURY: '8tzZzNiGkE2kYXhUSauNEUyVHiaWBt5pBagg7CHKPNBM',
+      TREASURY_TOKEN_ACCOUNT: '3s1SQ7JZmti4PfhVsb7LCTn9q5ZhRBMaH6v2vsrVZeg6',
+      ENTRY_FEE: 25, POST_FEE: 1, DECIMALS: 2
+    } : {
+      RPC: 'https://finnbots-rpc.mart-kin1000.workers.dev',
+      TOKEN_PROGRAM: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+      MEMO_PROGRAM: 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr',
+      OIL_MINT: 'HrcfXJcFdMoLfbkN5qCTSFrLsAgJNHitmwKc5AyS7xzf',
+      TREASURY: '75WPN3kwYUT5kdPU7V3Fp3LhnxmPC38bsgBCasRQdXMR',
+      TREASURY_TOKEN_ACCOUNT: '2ZBNMLZFfHCuZm9Lfc3b7ut296tRwGtapuXad7zSm1ED',
+      ENTRY_FEE: 25, POST_FEE: 1, DECIMALS: 2
+    };
+    var MEMO_TAG = 'MRBT';
+    var wallet = { pubkey:null, oil:0 };
+    var inited=false, busy=false, entrySig=null, pendingResult=null;
+    var connectBtn, walletStatus;
+
+    function $(id){ return document.getElementById(id); }
+    // ---- verbatim from Rush ----
+    function getProvider(){ if(window.phantom&&window.phantom.solana&&window.phantom.solana.isPhantom) return window.phantom.solana; if(window.solana&&window.solana.isPhantom) return window.solana; return null; }
+    function shortAddr(a){ return a.slice(0,4)+'\u2026'+a.slice(-4); }
+    function setStatus(html,cls){ walletStatus.classList.remove('hidden'); walletStatus.className='wallet-status'+(cls?' '+cls:''); walletStatus.innerHTML=html; }
+    function canPlay(){ return !!wallet.pubkey && wallet.oil>=CFG.ENTRY_FEE; }
+    function delay(ms){ return new Promise(function(res){ setTimeout(res,ms); }); }
+
+    // ---- balance (verbatim from Rush) --------------------------------------
+    async function fetchOilBalance(owner){
+      try{ var body=JSON.stringify({ jsonrpc:'2.0', id:'oilbal', method:'getTokenAccountsByOwner', params:[ owner, { mint:CFG.OIL_MINT }, { encoding:'jsonParsed' } ] });
+        var r=await fetch(CFG.RPC,{ method:'POST', headers:{'Content-Type':'application/json'}, body:body }); if(!r.ok) return 0;
+        var j=await r.json(); var accts=j&&j.result&&j.result.value; if(!accts||!accts.length) return 0;
+        var base=0; accts.forEach(function(acc){ try{ base+=Number(acc.account.data.parsed.info.tokenAmount.amount); }catch(e){} });
+        return base/Math.pow(10,CFG.DECIMALS);
+      }catch(e){ return 0; }
+    }
+    async function checkBalance(owner){
+      wallet.oil=await fetchOilBalance(owner);
+      var pfx=TEST_MODE?'\ud83e\uddea TEST MODE \u2014 ':'';
+      if(wallet.oil>=CFG.ENTRY_FEE){ setStatus('Connected as <span class="addr">'+shortAddr(owner)+'</span><br/>'+pfx+'You hold <b>'+wallet.oil.toFixed(2)+'</b> $OIL \u2014 tap Play to enter (25 OIL).', 'ok'); }
+      else { setStatus('Connected as <span class="addr">'+shortAddr(owner)+'</span><br/>'+pfx+'This wallet holds <b>'+wallet.oil.toFixed(2)+'</b> $OIL \u2014 need at least '+CFG.ENTRY_FEE+' to play.', 'warn'); }
+      relabelStart();
+    }
+
+    // ---- payment (one signed SPL transfer + memo — verbatim from Rush) -----
+    var PENDING_KEY='mrbt_pending_action';
+    function savePending(a){ try{ localStorage.setItem(PENDING_KEY, JSON.stringify(a)); }catch(e){} }
+    function loadPending(){ try{ var v=localStorage.getItem(PENDING_KEY); return v?JSON.parse(v):null; }catch(e){ return null; } }
+    function clearPending(){ try{ localStorage.removeItem(PENDING_KEY); }catch(e){} }
+    function PayError(msg){ this.userMessage=msg; }
+    function u64LE(amount){ var out=new Uint8Array(8); var big=BigInt(Math.round(amount)); for(var i=0;i<8;i++){ out[i]=Number(big&0xffn); big>>=8n; } return out; }
+    function buildTransferIx(src,dst,owner,amt){ var data=new Uint8Array(9); data[0]=3; data.set(u64LE(amt),1);
+      return new solanaWeb3.TransactionInstruction({ programId:new solanaWeb3.PublicKey(CFG.TOKEN_PROGRAM),
+        keys:[{pubkey:src,isSigner:false,isWritable:true},{pubkey:dst,isSigner:false,isWritable:true},{pubkey:owner,isSigner:true,isWritable:false}], data:data }); }
+    function buildMemoIx(owner,text){ return new solanaWeb3.TransactionInstruction({ programId:new solanaWeb3.PublicKey(CFG.MEMO_PROGRAM), keys:[{pubkey:owner,isSigner:true,isWritable:false}], data:new TextEncoder().encode(text) }); }
+    async function confirmSignature(connection,signature,timeoutMs){ var start=Date.now();
+      while(Date.now()-start<timeoutMs){ var res=await connection.getSignatureStatuses([signature]); var st=res&&res.value&&res.value[0];
+        if(st){ if(st.err) throw new PayError('The transaction failed on-chain \u2014 no charge was made. Please try again.'); if(st.confirmationStatus==='confirmed'||st.confirmationStatus==='finalized') return true; } await delay(1500); } return false; }
+
+    async function sendPayment(amountOil, memoText, action){
+      var provider=getProvider();
+      var useMobile=!provider && window.PhantomMobile && PhantomMobile.isMobile() && PhantomMobile.hasSession();
+      if(!provider && !useMobile) throw new PayError('Phantom isn\u2019t reachable here \u2014 open this page in your browser, or tap Connect again on mobile.');
+      var ownerPk=new solanaWeb3.PublicKey(wallet.pubkey);
+      var connection=new solanaWeb3.Connection(CFG.RPC,'confirmed');
+      var tokAccts=await connection.getTokenAccountsByOwner(ownerPk,{ mint:new solanaWeb3.PublicKey(CFG.OIL_MINT) });
+      if(!tokAccts.value.length) throw new PayError('No $OIL account found in this wallet.');
+      var sourcePubkey=tokAccts.value[0].pubkey;
+      var balInfo=await connection.getTokenAccountBalance(sourcePubkey);
+      var needBase=Math.round(amountOil*Math.pow(10,CFG.DECIMALS));
+      if(Number(balInfo.value.amount)<needBase) throw new PayError('Not enough liquid $OIL \u2014 need '+amountOil+'.');
+      var destPubkey=new solanaWeb3.PublicKey(CFG.TREASURY_TOKEN_ACCOUNT);
+      var tx=new solanaWeb3.Transaction();
+      tx.add(buildTransferIx(sourcePubkey,destPubkey,ownerPk,needBase), buildMemoIx(ownerPk,memoText));
+      tx.feePayer=ownerPk; var latest=await connection.getLatestBlockhash(); tx.recentBlockhash=latest.blockhash;
+      if(useMobile){
+        var pend={ action:action, owner:wallet.pubkey, marker:'mrbt_sign' };
+        if(action==='score' && pendingResult){ pend.entrySig=entrySig; pend.rounds=pendingResult.rounds; pend.timeMs=pendingResult.timeMs; }
+        savePending(pend); setStatus('Opening Phantom to approve\u2026');
+        var unsigned=tx.serialize({ requireAllSignatures:false, verifySignatures:false });
+        PhantomMobile.signTransaction(unsigned, window.location.origin+window.location.pathname, 'mrbt_sign'); return null;
+      }
+      var signed=await provider.signTransaction(tx); setStatus('Sending payment\u2026');
+      var rawSig=await connection.sendRawTransaction(signed.serialize(),{ skipPreflight:false }); setStatus('Payment sent \u2014 waiting for confirmation\u2026');
+      var ok=await confirmSignature(connection,rawSig,30000); if(!ok) throw new PayError('Confirmation is taking longer than expected. Signature: '+rawSig+'. Do not pay again \u2014 check it first.');
+      return rawSig; // base58 on-chain signature
+    }
+
+    // ---- score memo (MRBT — no seed, no move-log, no replay; records NOT verified) ----
+    function buildScoreMemo(res){ return MEMO_TAG+'|score|sig='+String(entrySig).slice(0,32)+'|rounds='+res.rounds+'|time='+res.timeMs; }
+
+    // ---- flow glue (Mr Bot: single-run action game) ------------------------
+    function relabelStart(){
+      var t = (mode==='paid') ? (canPlay() ? 'Play (25 OIL)' : 'Play \u2014 need 25 OIL') : 'Start shift';
+      var a=$('startBtn'), b=$('startBtn2'); if(a) a.textContent=t; if(b) b.textContent=t;
+    }
+    function onEntryConfirmed(sig){ entrySig=sig; busy=false; lockModeToggle(true);
+      setStatus('Entry paid \u2014 good luck! Post your score after the run.', 'ok'); relabelStart();
+      window.MrBotEngine.start(); }
+    // Called by the engine at game over. Returns true if this was a paid run (engine then skips its free banner).
+    function onRunEnd(res){
+      if(mode!=='paid' || !entrySig) return false;
+      pendingResult={ rounds:res.rounds, timeMs:res.timeMs };
+      showRunOver(pendingResult); return true;
+    }
+    function fmtTime(ms){ var s=Math.round(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+    function showRunOver(res){
+      setStatus('Run over \u2014 post your score below to record it (1 OIL).', 'ok'); relabelStart();
+      var ov=$('overlay'); ov.classList.remove('hidden');
+      ov.innerHTML='<div class="card"><h2>Run over</h2><p>Rounds cleared <b>'+res.rounds+'</b> \u00b7 Time <b>'+fmtTime(res.timeMs)+'</b><br/>Post it to the leaderboard (1 OIL) \u2014 a fun ranking, not verified.</p>'+
+        '<button class="btn" id="postBtn">Post score (1 OIL)</button></div>';
+      $('postBtn').addEventListener('click', onPost, { once:false });
+    }
+    async function onPost(){
+      if(busy || !pendingResult) return;
+      busy=true; var pb=$('postBtn'); if(pb){ pb.disabled=true; pb.textContent='Posting\u2026'; }
+      var memo=buildScoreMemo(pendingResult);
+      try{ var sig=await sendPayment(CFG.POST_FEE, memo, 'score'); if(sig===null) return; showPosted(pendingResult); }
+      catch(e){ setStatus('Connected as <span class="addr">'+shortAddr(wallet.pubkey||'')+'</span><br/>'+((e instanceof PayError)?e.userMessage:'Your score post didn\u2019t confirm. Nothing recorded yet \u2014 tap to retry.'), 'warn');
+        if(pb){ pb.disabled=false; pb.textContent='Retry post'; } busy=false; }
+    }
+    function showPosted(res){ pendingResult=null; entrySig=null; busy=false; lockModeToggle(false);
+      $('posted-text').innerHTML='Rounds cleared <b>'+res.rounds+'</b> \u00b7 Time <b>'+fmtTime(res.timeMs)+'</b>. It\u2019ll appear on the leaderboard once recorded on-chain \u2014 a fun ranking, not verified.';
+      $('postedSheet').classList.add('show');
+    }
+    function resetToPlay(){ entrySig=null; pendingResult=null; busy=false; lockModeToggle(false);
+      var ov=$('overlay'); ov.classList.remove('hidden');
+      ov.innerHTML='<div class="card"><h2>Mr Bot</h2><p>Paid run \u2014 25 OIL entry, one run, fun leaderboard. Fetch the three parts, then build the Bots.</p><button class="btn" id="startBtn">Play (25 OIL)</button></div>';
+      $('startBtn').addEventListener('click', function(){ if(!(window.MrBotPaid && MrBotPaid.handleStart && MrBotPaid.handleStart())) window.MrBotEngine.start(); });
+      relabelStart();
+      if(wallet.pubkey) checkBalance(wallet.pubkey);
+    }
+
+    // ---- connect (desktop + mobile — verbatim from Rush) -------------------
+    async function onConnect(){
+      var provider=getProvider();
+      if(!provider){
+        if(window.PhantomMobile && PhantomMobile.isMobile()){
+          var inBrowse=new URLSearchParams(window.location.search).get('src')==='browse';
+          if(!inBrowse){ connectBtn.disabled=true; connectBtn.textContent='Opening in Phantom\u2026'; setStatus('Opening this game inside Phantom\u2019s browser.');
+            var target=window.location.origin+window.location.pathname+'?src=browse';
+            window.location.href='https://phantom.app/ul/browse/'+encodeURIComponent(target)+'?ref='+encodeURIComponent(window.location.origin); return; }
+          connectBtn.disabled=true; connectBtn.textContent='Opening Phantom\u2026'; setStatus('Opening Phantom \u2014 approve, then you\u2019ll come back here.');
+          PhantomMobile.connect(window.location.origin+window.location.pathname); return;
+        }
+        setStatus('Phantom isn\u2019t reachable here. Open this page in a browser with the <a href="https://phantom.app" target="_blank" rel="noopener">Phantom</a> extension.', 'warn'); return;
+      }
+      connectBtn.disabled=true; connectBtn.textContent='Connecting\u2026';
+      try{ var resp=await provider.connect(); wallet.pubkey=resp.publicKey.toString(); connectBtn.textContent='Connected';
+        setStatus('Connected as <span class="addr">'+shortAddr(wallet.pubkey)+'</span><br/>Checking your $OIL balance\u2026'); checkBalance(wallet.pubkey);
+      }catch(e){ connectBtn.disabled=false; connectBtn.textContent='Connect'; setStatus('Connection cancelled. Tap Connect to try again.', 'warn'); }
+    }
+
+    // ---- play (25 OIL entry) -----------------------------------------------
+    async function onPlay(){
+      if(busy || entrySig) return;
+      if(!canPlay()){ setStatus('Connect a wallet holding at least '+CFG.ENTRY_FEE+' $OIL to play.', 'warn'); return; }
+      busy=true; relabelStartBusy('Sending entry\u2026');
+      try{ var sig=await sendPayment(CFG.ENTRY_FEE, MEMO_TAG+'|entry', 'entry'); if(sig===null) return; onEntryConfirmed(sig); }
+      catch(e){ setStatus('Connected as <span class="addr">'+shortAddr(wallet.pubkey||'')+'</span><br/>'+((e instanceof PayError)?e.userMessage:'Something went wrong sending the entry. No confirmed charge means nothing was taken.'), 'warn');
+        busy=false; relabelStart(); }
+    }
+    function relabelStartBusy(t){ var a=$('startBtn'), b=$('startBtn2'); if(a) a.textContent=t; if(b) b.textContent=t; }
+
+    function onAgain(){ $('postedSheet').classList.remove('show'); resetToPlay(); }
+
+    // ---- mobile redirect resume (verbatim from Rush; carries rounds/timeMs) --
+    async function resume(){
+      var actionParam=new URLSearchParams(window.location.search).get('phantom_action');
+      if(!actionParam){
+        if(!wallet.pubkey && window.PhantomMobile && PhantomMobile.hasSession()){ wallet.pubkey=PhantomMobile.getSessionPublicKey();
+          connectBtn.textContent='Connected'; connectBtn.disabled=true; setStatus('Connected as <span class="addr">'+shortAddr(wallet.pubkey)+'</span><br/>Checking your $OIL balance\u2026'); checkBalance(wallet.pubkey); }
+        return;
+      }
+      connectBtn.disabled=true; connectBtn.textContent='Finishing\u2026'; setStatus('Almost there \u2014 finishing up with Phantom\u2026');
+      var pending=loadPending(); var marker=pending?pending.marker:'mrbt_sign';
+      var result=window.PhantomMobile?PhantomMobile.consumePendingRedirect(marker):null;
+      if(result&&result.type==='connect'){ wallet.pubkey=result.publicKey; connectBtn.textContent='Connected';
+        setStatus('Connected as <span class="addr">'+shortAddr(wallet.pubkey)+'</span><br/>Checking your $OIL balance\u2026'); checkBalance(wallet.pubkey); return; }
+      if(result&&result.type==='signTransaction'&&pending){ connectBtn.textContent='Connected'; connectBtn.disabled=true; if(pending.owner) wallet.pubkey=pending.owner; clearPending();
+        try{ var connection=new solanaWeb3.Connection(CFG.RPC,'confirmed'); var rawSig=await connection.sendRawTransaction(result.txBytes,{ skipPreflight:false });
+          setStatus('Payment sent \u2014 waiting for confirmation\u2026'); var ok=await confirmSignature(connection,rawSig,30000);
+          if(!ok) throw new PayError('Confirmation slow. Signature: '+rawSig+'. Do not pay again \u2014 check it first.');
+          if(pending.action==='entry'){ onEntryConfirmed(rawSig); }
+          else if(pending.action==='score'){ pendingResult={ rounds:pending.rounds, timeMs:pending.timeMs }; showPosted(pendingResult); }
+          if(wallet.pubkey) checkBalance(wallet.pubkey);
+        }catch(e){ setStatus('Connected as <span class="addr">'+shortAddr(wallet.pubkey||'')+'</span><br/>'+((e instanceof PayError)?e.userMessage:'Something went wrong after returning from Phantom. Check your wallet activity before retrying.'), 'warn'); }
+        return;
+      }
+      connectBtn.disabled=false; connectBtn.textContent='Connect';
+      setStatus((result&&result.type==='error')?result.message:'The connection didn\u2019t complete \u2014 tap Connect to try again.', 'warn');
+    }
+
+    function init(){
+      if(inited) return; inited=true;
+      connectBtn=$('connectBtn'); walletStatus=$('walletStatus');
+      if(TEST_MODE){ $('testBanner').classList.remove('hidden'); }
+      connectBtn.addEventListener('click', onConnect);
+      $('againBtn').addEventListener('click', onAgain);
+    }
+
+    return { init:init, resume:resume, onRunEnd:onRunEnd, handleStart:handleStart, hasSession:function(){ return window.PhantomMobile && PhantomMobile.hasSession(); } };
+
+    // handleStart is the entry gate reused by the game's Start buttons (begin()).
+    function handleStart(){
+      if(mode!=='paid') return false;      // Free: engine starts as normal
+      if(busy || entrySig) return true;    // in-flight or a paid run already armed: block a free start
+      if(!wallet.pubkey){ setStatus('Connect a wallet with at least '+CFG.ENTRY_FEE+' $OIL, then tap Play.', 'warn'); return true; }
+      onPlay(); return true;
+    }
+  })();
+
+  window.MrBotPaid = Paid;
+
+  // ===== Mode switching (kid-safety: Paid is a deliberate opt-in) ============
+  var facts=document.getElementById('facts')||document.querySelector('.facts');
+  var statusEl=document.querySelector('.status');
+  var confirmSheet=document.getElementById('confirmSheet');
+  var FREE_FACTS='Free \u00b7 no wallet \u00b7 fetch the 3 parts \u00b7 spray OIL to stun';
+  var PAID_FACTS='Paid \u00b7 25 OIL entry \u00b7 one run \u00b7 fun leaderboard (not verified) \u00b7 holders \u00d71.5';
+
+  function setMode(m){
+    mode=m;
+    var f=document.getElementById('modeFree'), p=document.getElementById('modePaid');
+    if(m==='free'){
+      document.body.classList.remove('mode-paid');
+      f.classList.add('active'); p.classList.remove('active');
+      if(facts) facts.textContent=FREE_FACTS;
+      if(statusEl) statusEl.textContent='Playing free \u2014 wallet not used';
+    } else {
+      document.body.classList.add('mode-paid');
+      p.classList.add('active'); f.classList.remove('active');
+      if(facts) facts.textContent=PAID_FACTS;
+      if(statusEl) statusEl.textContent='Paid mode \u2014 connect a wallet, then Play (25 OIL)';
+    }
+    var a=document.getElementById('startBtn'), b=document.getElementById('startBtn2');
+    var t=(m==='paid')?'Play (25 OIL)':'Start shift'; if(a) a.textContent=t; if(b) b.textContent=t;
+  }
+
+  document.getElementById('modeFree').addEventListener('click', function(){ if(mode==='free') return; setMode('free'); });
+  document.getElementById('modePaid').addEventListener('click', function(){ if(mode==='paid') return; confirmSheet.classList.add('show'); });
+  document.getElementById('confirmBack').addEventListener('click', function(){ confirmSheet.classList.remove('show'); });
+  document.getElementById('confirmEnter').addEventListener('click', function(){ confirmSheet.classList.remove('show'); setMode('paid'); Paid.init(); if(Paid.hasSession && Paid.hasSession()) Paid.resume(); });
+
+  // ===== On load: Free by default. The wallet layer is only touched when returning
+  // ===== from a Phantom redirect or already inside Phantom's browser (both of which
+  // ===== can ONLY occur after the user opted into Paid). =====================
+  (function boot(){
+    var params=new URLSearchParams(window.location.search);
+    if(params.get('phantom_action') || params.get('src')==='browse'){ setMode('paid'); Paid.init(); Paid.resume(); }
+    else { setMode('free'); }
+  })();
+})();
+</script>
+</body>
+</html>
