@@ -893,14 +893,14 @@
   }
 
   var Paid = (function(){
-    var TEST_MODE = true;    // <-- flip to false ONLY with Founder confirm in this run's output
+    var TEST_MODE = false;    // <-- flip to false ONLY with Founder confirm in this run's output
     var CFG = TEST_MODE ? {
       RPC: 'http://127.0.0.1:8899',
       TOKEN_PROGRAM: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
       MEMO_PROGRAM: 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr',
-      OIL_MINT: 'H97Qcw7ao5yisvE5dRGLKnMhcCsrojFBNxU5ALUJ3SL2',
+      OIL_MINT: '9B5ZQifZQc3ykhnZhA9m8DFoNY5uaTwqHGNZMah6eK8Y',
       TREASURY: '8tzZzNiGkE2kYXhUSauNEUyVHiaWBt5pBagg7CHKPNBM',
-      TREASURY_TOKEN_ACCOUNT: '7XSE68LH5rekFX9JeyguTsUMmkDm3egCWkSXpnfLAY1J',
+      TREASURY_TOKEN_ACCOUNT: '3s1SQ7JZmti4PfhVsb7LCTn9q5ZhRBMaH6v2vsrVZeg6',
       ENTRY_FEE: 25, POST_FEE: 1, DECIMALS: 2
     } : {
       RPC: 'https://finnbots-rpc.mart-kin1000.workers.dev',
@@ -993,7 +993,9 @@
       var t = (mode==='paid') ? (canPlay() ? 'Play (25 OIL)' : 'Play \u2014 need 25 OIL') : 'Start shift';
       var a=$('startBtn'), b=$('startBtn2'); if(a) a.textContent=t; if(b) b.textContent=t;
     }
-    function onEntryConfirmed(sig){ entrySig=sig; busy=false; lockModeToggle(true); window.MrBotEngine.start(); }
+    function onEntryConfirmed(sig){ entrySig=sig; busy=false; lockModeToggle(true);
+      setStatus('Entry paid \u2014 good luck! Post your score after the run.', 'ok'); relabelStart();
+      window.MrBotEngine.start(); }
     // Called by the engine at game over. Returns true if this was a paid run (engine then skips its free banner).
     function onRunEnd(res){
       if(mode!=='paid' || !entrySig) return false;
@@ -1002,6 +1004,7 @@
     }
     function fmtTime(ms){ var s=Math.round(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
     function showRunOver(res){
+      setStatus('Run over \u2014 post your score below to record it (1 OIL).', 'ok'); relabelStart();
       var ov=$('overlay'); ov.classList.remove('hidden');
       ov.innerHTML='<div class="card"><h2>Run over</h2><p>Rounds cleared <b>'+res.rounds+'</b> \u00b7 Time <b>'+fmtTime(res.timeMs)+'</b><br/>Post it to the leaderboard (1 OIL) \u2014 a fun ranking, not verified.</p>'+
         '<button class="btn" id="postBtn">Post score (1 OIL)</button></div>';
