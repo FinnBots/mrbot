@@ -633,12 +633,18 @@
   function drawTicker(t){
     if(!t) return;
     var frozen = t.frozen > 0;
-    ctx.fillStyle = frozen ? "#bfeff2" : "#3fd0d8"; rrect(t.x-10, t.y-22, 20, 22, 8); ctx.fill();
-    ctx.fillStyle = "#0c5a60"; ctx.fillRect(t.x-5, t.y-15, 3,3); ctx.fillRect(t.x+2, t.y-15, 3,3);
-    ctx.strokeStyle = "#0c5a60"; ctx.lineWidth=1; ctx.beginPath();
-    ctx.arc(t.x, t.y-9, 4, 0, frozen ? Math.PI*2 : Math.PI); ctx.stroke();
+    var base=frozen?"#bfeff2":"#3fd0d8", hi=frozen?"#eafaff":"#8ff0f5", sh=frozen?"#7fb8bd":"#1f9aa2";
+    ctx.fillStyle="#0a2a2e"; rrect(t.x-11,t.y-23,22,24,8); ctx.fill();                 // outline
+    ctx.fillStyle=base;      rrect(t.x-10,t.y-22,20,22,8); ctx.fill();                 // body
+    ctx.fillStyle=hi;        rrect(t.x-9,t.y-21,18,4,4);  ctx.fill();                  // top highlight
+    ctx.fillStyle=sh;        ctx.fillRect(t.x-9,t.y-3,18,3);                           // bottom shadow
+    ctx.fillStyle="#06232a"; ctx.fillRect(t.x-7,t.y-17,14,9);                          // screen
+    ctx.fillStyle="#8ff0f5"; ctx.fillRect(t.x-5,t.y-15,3,3); ctx.fillRect(t.x+2,t.y-15,3,3); // eyes
+    ctx.strokeStyle="#8ff0f5"; ctx.lineWidth=1; ctx.beginPath();
+    ctx.arc(t.x, t.y-10, 3, 0, frozen ? Math.PI*2 : Math.PI); ctx.stroke();            // mouth
+    ctx.fillStyle="#0a2a2e"; ctx.fillRect(t.x-6,t.y,2,2); ctx.fillRect(t.x+4,t.y,2,2); // legs
     if(frozen){ ctx.strokeStyle = "#eafaff"; ctx.beginPath();
-      ctx.moveTo(t.x-8,t.y-24); ctx.lineTo(t.x-4,t.y-20); ctx.moveTo(t.x+8,t.y-24); ctx.lineTo(t.x+4,t.y-20); ctx.stroke(); }
+      ctx.moveTo(t.x-8,t.y-25); ctx.lineTo(t.x-4,t.y-21); ctx.moveTo(t.x+8,t.y-25); ctx.lineTo(t.x+4,t.y-21); ctx.stroke(); }
   }
   function drawHud(){
     ctx.fillStyle = "#000"; ctx.fillRect(0,0,VW,HUD_H);
@@ -785,8 +791,14 @@
   function drawSEnemy(en){
     if(en.state==="squashed") return;
     var frozen = en.frozen>0;
-    ctx.fillStyle = frozen ? "#cfe8ee" : en.col; rrect(en.x-9, en.y-20, 18, 20, 6); ctx.fill();
-    ctx.fillStyle = "#2a1420"; ctx.fillRect(en.x-4, en.y-14, 3,3); ctx.fillRect(en.x+1, en.y-14, 3,3);
+    var base = frozen ? "#cfe8ee" : en.col;
+    ctx.fillStyle="#160a12"; rrect(en.x-10, en.y-21, 20, 22, 6); ctx.fill();           // outline
+    ctx.fillStyle=base;      rrect(en.x-9, en.y-20, 18, 20, 6); ctx.fill();            // body
+    ctx.fillStyle="rgba(255,255,255,.30)"; rrect(en.x-8, en.y-19, 16, 3, 3); ctx.fill(); // top highlight
+    ctx.fillStyle="rgba(0,0,0,.28)"; ctx.fillRect(en.x-8, en.y-3, 16, 3);              // bottom shadow
+    ctx.fillStyle="#160a12"; ctx.fillRect(en.x-6, en.y-15, 12, 7);                     // screen
+    ctx.fillStyle="#ffe08a"; ctx.fillRect(en.x-4, en.y-14, 3,3); ctx.fillRect(en.x+1, en.y-14, 3,3); // eyes
+    ctx.fillStyle="#160a12"; ctx.fillRect(en.x-5, en.y, 2,2); ctx.fillRect(en.x+3, en.y, 2,2);       // legs
     if(frozen){ ctx.strokeStyle="#eafaff"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(en.x-7,en.y-22); ctx.lineTo(en.x-3,en.y-18); ctx.moveTo(en.x+7,en.y-22); ctx.lineTo(en.x+3,en.y-18); ctx.stroke(); }
   }
   function drawBar(g){
