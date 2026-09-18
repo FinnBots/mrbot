@@ -553,10 +553,14 @@
   function draw(){ if(screen === "stack") drawStack(); else drawFetch(); }
   function drawFetch(){
     ctx.clearRect(0,0,VW,VH);
-    // play bg
-    ctx.fillStyle = "#000"; ctx.fillRect(0,0,VW,VH);
-    // side pillars
-    ctx.fillStyle = "#123fd6"; ctx.fillRect(0,HUD_H,20,VH-HUD_H); ctx.fillRect(VW-20,HUD_H,20,VH-HUD_H);
+    // play bg — subtle plum-dark gradient (was flat black)
+    var bg = ctx.createLinearGradient(0,HUD_H,0,VH);
+    bg.addColorStop(0,"#1c1526"); bg.addColorStop(1,"#0d0a14");
+    ctx.fillStyle = bg; ctx.fillRect(0,0,VW,VH);
+    // side pillars — electric, shaded
+    ctx.fillStyle = "#0a2050"; ctx.fillRect(0,HUD_H,20,VH-HUD_H); ctx.fillRect(VW-20,HUD_H,20,VH-HUD_H);
+    ctx.fillStyle = "#123fd6"; ctx.fillRect(2,HUD_H,14,VH-HUD_H); ctx.fillRect(VW-18,HUD_H,14,VH-HUD_H);
+    ctx.fillStyle = "rgba(127,215,255,.25)"; ctx.fillRect(2,HUD_H,3,VH-HUD_H); ctx.fillRect(VW-18,HUD_H,3,VH-HUD_H);
 
     // floors (brick) between pillars, with manhole gaps drawn after
     for(var f=0; f<FLOOR_Y.length; f++){ brickRow(20, FLOOR_Y[f], VW-40); }
