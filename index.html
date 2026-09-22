@@ -122,6 +122,17 @@
         border-radius:10px; display:block; width:100%; box-sizing:border-box; text-decoration:none; margin-bottom:8px;}
   .panel .ghostbtn:last-child{margin-bottom:0;}
 </style>
+<style id="pv-optimise">
+/* Portrait play-area optimisation (2026-09-22): Mr Bot is portrait (320x480) & height-bound —
+   reclaim vertical chrome + revert the .app width so the canvas grows and the frame stays tidy. */
+.app{max-width:520px!important}
+.topbar{padding:6px 14px 8px!important}
+body:not(.mode-paid) .facts{display:none!important}
+.status{padding:2px 14px!important}
+.actions{min-height:0!important;padding:5px 14px!important}
+.dpad{grid-template-columns:repeat(3,44px)!important;grid-template-rows:repeat(3,36px)!important}
+.footer{padding:3px 10px 4px!important;font-size:11px!important}
+</style>
 </head>
 <body>
 <div class="app">
