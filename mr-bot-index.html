@@ -25,7 +25,7 @@
     justify-content:stretch; user-select:none;
   }
   .app{
-    width:100%; max-width:460px; height:100dvh;
+    width:100%; max-width:1400px; height:100dvh;
     background:var(--peach);
     display:flex; flex-direction:column;
     box-shadow:0 0 0 1px rgba(95,76,87,.12);
@@ -121,6 +121,25 @@
         font-weight:600; font-size:14px; background:transparent; color:var(--plum); padding:9px 18px;
         border-radius:10px; display:block; width:100%; box-sizing:border-box; text-decoration:none; margin-bottom:8px;}
   .panel .ghostbtn:last-child{margin-bottom:0;}
+</style>
+<style id="pv-optimise">
+/* Portrait play-area optimisation (2026-09-22): Mr Bot is portrait (320x480) & height-bound —
+   reclaim vertical chrome + revert the .app width so the canvas grows and the frame stays tidy. */
+.app{max-width:520px!important}
+.topbar{padding:6px 14px 8px!important}
+body:not(.mode-paid) .facts{display:none!important}
+.status{padding:2px 14px!important}
+.actions{min-height:0!important;padding:5px 14px!important}
+.dpad{grid-template-columns:repeat(3,44px)!important;grid-template-rows:repeat(3,36px)!important}
+.footer{padding:3px 10px 4px!important;font-size:11px!important}
+</style>
+<style id="pv-controls">
+/* Arcade control layout (2026-09-22): movement left hand, action right hand, max separation */
+.ctrls{display:contents!important}
+.actions{justify-content:space-between!important;align-items:center!important}
+#dpad{order:-1!important}
+.startwrap{order:1!important}
+#fireBtn{order:2!important;width:66px!important;height:66px!important}
 </style>
 </head>
 <body>
@@ -288,7 +307,7 @@
 
   var state, cam, tickers, manholes, parts, keys, shiftN, score, hsc, lives, bonus, invuln, carriedFx;
   var runStartMs = 0;   // Paid layer: stamped at run start, read at game over for the score memo
-  var squirts=3, squirtMax=3, squirtRegen=0, sprayFx=0, sprayDir=1, sprayFloor=0, sprayX=0, firePressed=false;
+  var squirts=5, squirtMax=5, squirtRegen=0, sprayFx=0, sprayDir=1, sprayFloor=0, sprayX=0, firePressed=false;
   var screen = "fetch";
   try { hsc = parseInt(localStorage.getItem("mrbot_hsc") || "0", 10) || 0; } catch(e){ hsc = 0; }
 
@@ -306,7 +325,7 @@
   }
 
   function startGame(){
-    shiftN = 1; score = 0; lives = 3;
+    shiftN = 1; score = 0; lives = 3; nextChef = EXTRA_EVERY;
     runStartMs = Date.now();
     screen = "fetch";
     startShift();
@@ -498,7 +517,7 @@
   }
 
   function shiftClear(){
-    score += 300 + Math.round(bonus);
+    addScore(300 + Math.round(bonus));
     if(score > hsc){ hsc = score; try{ localStorage.setItem("mrbot_hsc", String(hsc)); }catch(e){} }
     banner("Parts fetched! \u2192 workshop", "win", function(){ startStack(); state = "play"; });
   }
@@ -652,7 +671,7 @@
     ctx.fillStyle = "#f2b6d2"; ctx.fillText("OIL", 96, 27);
     for(var q=0;q<squirtMax;q++){ ctx.fillStyle = (q < squirts) ? "#f07cc0" : "#5a3a4a"; ctx.fillRect(122 + q*10, 23, 7, 9); }
     // lives top-right
-    for(var i=0;i<lives;i++){ var lx = VW - 12 - i*12; ctx.fillStyle = "#f2c14e"; rrect(lx-4, 6, 9, 12, 2); ctx.fill(); }
+    for(var i=0;i<Math.min(lives,8);i++){ var lx = VW - 12 - i*12; ctx.fillStyle = "#f2c14e"; rrect(lx-4, 6, 9, 12, 2); ctx.fill(); }
     ctx.fillStyle = "#c9c2d4"; ctx.font = '10px "Jersey 15", monospace'; ctx.textAlign="right";
     ctx.fillText("shift " + shiftN, VW - 12, 27); ctx.textAlign = "left";
   }
@@ -685,16 +704,26 @@
       if(Math.abs(x-L.x) < 10){ if(up && L.dn===floor) return L; if(!up && L.up===floor) return L; } }
     return null;
   }
+  // Arcade BurgerTime scoring: knocking a part down = 50; catching nasties on a falling
+  // part pays a DOUBLING chain 500/1000/2000/4000/8000/16000 for 1..6 caught at once,
+  // and the part falls TWO EXTRA LEVELS for every nasty riding it.
+  var DROP_PTS = 50;
+  var RIDE_PTS = [500,1000,2000,4000,8000,16000];
   function dropIng(g){
     if(g.state!=="rest") return;
     g.fromLevel = g.level;
     var riders = 0;
     for(var e=0;e<sEnemies.length;e++){ var en=sEnemies[e];
       if(en.state==="walk" && en.level===g.level && en.x>=g.x-6 && en.x<=g.x+SBW+6){ squashEnemy(en); riders++; } }
+    addScore(DROP_PTS);
+    g.caught = riders;
     g.state="falling";
-    g.fallTo = Math.min(SPLATE_LVL, g.level + 1 + riders);
+    g.fallTo = Math.min(SPLATE_LVL, g.level + 1 + 2*riders);   // arcade: +2 levels per rider
   }
-  function squashEnemy(en){ if(en.state!=="walk") return; en.state="squashed"; en.resp=200; en.frozen=0; score += 100; }
+  // arcade: an extra chef for every 10,000 points
+  var EXTRA_EVERY = 10000, nextChef = EXTRA_EVERY;
+  function addScore(n){ score += n; while(score >= nextChef){ lives++; nextChef += EXTRA_EVERY; } }
+  function squashEnemy(en){ if(en.state!=="walk") return; en.state="squashed"; en.resp=200; en.frozen=0; }
   function updateStack(dt){
     if(sprayFx > 0) sprayFx--;
     if(invuln > 0) invuln--;
@@ -728,7 +757,8 @@
         if(g.y >= target){
           g.y = target;
           for(var e2=0;e2<sEnemies.length;e2++){ var en2=sEnemies[e2];
-            if(en2.state==="walk" && en2.x>=g.x-6 && en2.x<=g.x+SBW+6 && en2.level>g.fromLevel && en2.level<=g.fallTo){ squashEnemy(en2); } }
+            if(en2.state==="walk" && en2.x>=g.x-6 && en2.x<=g.x+SBW+6 && en2.level>g.fromLevel && en2.level<=g.fallTo){ squashEnemy(en2); g.caught=(g.caught||0)+1; } }
+          if(g.caught>0){ addScore(RIDE_PTS[Math.min(g.caught,RIDE_PTS.length)-1]); g.caught=0; }
           if(g.fallTo >= SPLATE_LVL){
             g.state="plated"; g.level=SPLATE_LVL; sPlated[g.col]++;
           } else {
@@ -745,7 +775,7 @@
     if(sPlated[0]>=4 && sPlated[1]>=4 && sPlated[2]>=4 && sPlated[3]>=4) stackClear();
   }
   function stackClear(){
-    score += 1000;
+    addScore(1000);
     if(score > hsc){ hsc = score; try{ localStorage.setItem("mrbot_hsc", String(hsc)); }catch(e){} }
     banner("Bots built!", "win", function(){ shiftN++; screen="fetch"; startShift(); state="play"; });
   }
@@ -824,7 +854,7 @@
     ctx.fillStyle="#f2b6d2"; ctx.fillText("WORKSHOP", 100, 12);
     ctx.fillStyle="#f2b6d2"; ctx.fillText("OIL", 100, 27);
     for(var q=0;q<squirtMax;q++){ ctx.fillStyle=(q<squirts)?"#f07cc0":"#5a3a4a"; ctx.fillRect(126+q*10, 23, 7, 9); }
-    for(var i=0;i<lives;i++){ var lx=VW-12-i*12; ctx.fillStyle="#f2c14e"; rrect(lx-4,6,9,12,2); ctx.fill(); }
+    for(var i=0;i<Math.min(lives,8);i++){ var lx=VW-12-i*12; ctx.fillStyle="#f2c14e"; rrect(lx-4,6,9,12,2); ctx.fill(); }
     ctx.fillStyle="#c9c2d4"; ctx.font='10px "Jersey 15", monospace'; ctx.textAlign="right";
     ctx.fillText("round "+shiftN, VW-12, 27); ctx.textAlign="left";
   }
@@ -852,8 +882,8 @@
   rulesModal.addEventListener("click", function(e){ if(e.target===rulesModal) rulesModal.classList.add("hidden"); });
 
   // init idle scene so canvas isn't blank before start
-  shiftN = 1; score = 0; lives = 3; bonus = 500; invuln = 0; carriedFx = 0;
-  squirts = 3; squirtRegen = 0; sprayFx = 0;
+  shiftN = 1; score = 0; lives = 3; nextChef = EXTRA_EVERY; bonus = 500; invuln = 0; carriedFx = 0;
+  squirts = squirtMax; squirtRegen = 0; sprayFx = 0;
   parts = partDefs(); manholes = newManholes(); resetCam();
   tickers = [
     { x:100, floor:1, y:FLOOR_Y[1], climbing:false, ladder:null, cy:0, spd:0.5, w:20, h:22, mode:"seek", mtimer:0,   wdir:1,  frozen:0 },
@@ -1151,5 +1181,7 @@
   })();
 })();
 </script>
+<script>/* Auto-open the How-To as an intro on first load (skip Phantom redirect returns). */
+try{var _bpIntro=new URLSearchParams(location.search);if(!_bpIntro.get('phantom_action')&&_bpIntro.get('src')!=='browse'){addEventListener('load',function(){var b=document.getElementById('infoBtn');if(b)b.click();});}}catch(e){}</script>
 </body>
 </html>
