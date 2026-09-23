@@ -240,7 +240,7 @@ body:not(.mode-paid) .facts{display:none!important}
   "use strict";
 
   // --- Cam sprite: Bot #106 (brand PFP). Confirm/replace with Pick-a-Bot's exact URL. ---
-  var BOT_106_IMG = "assets/hero/bot-106.png";   // keyed transparent 106 (no cyan box)
+  var BOT_106_IMG = "https://arweave.net/_cPSCheRvzVBlZK7QwM-3nXtteMdBbUn-zJhbGRlMmo/106.png";
   var camImg = new Image(); var camReady = false;
   camImg.crossOrigin = "anonymous";
   camImg.onload = function(){ camReady = true; };
@@ -307,7 +307,7 @@ body:not(.mode-paid) .facts{display:none!important}
 
   var state, cam, tickers, manholes, parts, keys, shiftN, score, hsc, lives, bonus, invuln, carriedFx;
   var runStartMs = 0;   // Paid layer: stamped at run start, read at game over for the score memo
-  var squirts=3, squirtMax=3, squirtRegen=0, sprayFx=0, sprayDir=1, sprayFloor=0, sprayX=0, firePressed=false;
+  var squirts=5, squirtMax=5, squirtRegen=0, sprayFx=0, sprayDir=1, sprayFloor=0, sprayX=0, firePressed=false;
   var screen = "fetch";
   try { hsc = parseInt(localStorage.getItem("mrbot_hsc") || "0", 10) || 0; } catch(e){ hsc = 0; }
 
@@ -325,7 +325,7 @@ body:not(.mode-paid) .facts{display:none!important}
   }
 
   function startGame(){
-    shiftN = 1; score = 0; lives = 3;
+    shiftN = 1; score = 0; lives = 3; nextChef = EXTRA_EVERY;
     runStartMs = Date.now();
     screen = "fetch";
     startShift();
@@ -517,7 +517,7 @@ body:not(.mode-paid) .facts{display:none!important}
   }
 
   function shiftClear(){
-    score += 300 + Math.round(bonus);
+    addScore(300 + Math.round(bonus));
     if(score > hsc){ hsc = score; try{ localStorage.setItem("mrbot_hsc", String(hsc)); }catch(e){} }
     banner("Parts fetched! \u2192 workshop", "win", function(){ startStack(); state = "play"; });
   }
@@ -572,14 +572,10 @@ body:not(.mode-paid) .facts{display:none!important}
   function draw(){ if(screen === "stack") drawStack(); else drawFetch(); }
   function drawFetch(){
     ctx.clearRect(0,0,VW,VH);
-    // play bg — subtle plum-dark gradient (was flat black)
-    var bg = ctx.createLinearGradient(0,HUD_H,0,VH);
-    bg.addColorStop(0,"#1c1526"); bg.addColorStop(1,"#0d0a14");
-    ctx.fillStyle = bg; ctx.fillRect(0,0,VW,VH);
-    // side pillars — electric, shaded
-    ctx.fillStyle = "#0a2050"; ctx.fillRect(0,HUD_H,20,VH-HUD_H); ctx.fillRect(VW-20,HUD_H,20,VH-HUD_H);
-    ctx.fillStyle = "#123fd6"; ctx.fillRect(2,HUD_H,14,VH-HUD_H); ctx.fillRect(VW-18,HUD_H,14,VH-HUD_H);
-    ctx.fillStyle = "rgba(127,215,255,.25)"; ctx.fillRect(2,HUD_H,3,VH-HUD_H); ctx.fillRect(VW-18,HUD_H,3,VH-HUD_H);
+    // play bg
+    ctx.fillStyle = "#000"; ctx.fillRect(0,0,VW,VH);
+    // side pillars
+    ctx.fillStyle = "#123fd6"; ctx.fillRect(0,HUD_H,20,VH-HUD_H); ctx.fillRect(VW-20,HUD_H,20,VH-HUD_H);
 
     // floors (brick) between pillars, with manhole gaps drawn after
     for(var f=0; f<FLOOR_Y.length; f++){ brickRow(20, FLOOR_Y[f], VW-40); }
@@ -656,18 +652,12 @@ body:not(.mode-paid) .facts{display:none!important}
   function drawTicker(t){
     if(!t) return;
     var frozen = t.frozen > 0;
-    var base=frozen?"#bfeff2":"#3fd0d8", hi=frozen?"#eafaff":"#8ff0f5", sh=frozen?"#7fb8bd":"#1f9aa2";
-    ctx.fillStyle="#0a2a2e"; rrect(t.x-11,t.y-23,22,24,8); ctx.fill();                 // outline
-    ctx.fillStyle=base;      rrect(t.x-10,t.y-22,20,22,8); ctx.fill();                 // body
-    ctx.fillStyle=hi;        rrect(t.x-9,t.y-21,18,4,4);  ctx.fill();                  // top highlight
-    ctx.fillStyle=sh;        ctx.fillRect(t.x-9,t.y-3,18,3);                           // bottom shadow
-    ctx.fillStyle="#06232a"; ctx.fillRect(t.x-7,t.y-17,14,9);                          // screen
-    ctx.fillStyle="#8ff0f5"; ctx.fillRect(t.x-5,t.y-15,3,3); ctx.fillRect(t.x+2,t.y-15,3,3); // eyes
-    ctx.strokeStyle="#8ff0f5"; ctx.lineWidth=1; ctx.beginPath();
-    ctx.arc(t.x, t.y-10, 3, 0, frozen ? Math.PI*2 : Math.PI); ctx.stroke();            // mouth
-    ctx.fillStyle="#0a2a2e"; ctx.fillRect(t.x-6,t.y,2,2); ctx.fillRect(t.x+4,t.y,2,2); // legs
+    ctx.fillStyle = frozen ? "#bfeff2" : "#3fd0d8"; rrect(t.x-10, t.y-22, 20, 22, 8); ctx.fill();
+    ctx.fillStyle = "#0c5a60"; ctx.fillRect(t.x-5, t.y-15, 3,3); ctx.fillRect(t.x+2, t.y-15, 3,3);
+    ctx.strokeStyle = "#0c5a60"; ctx.lineWidth=1; ctx.beginPath();
+    ctx.arc(t.x, t.y-9, 4, 0, frozen ? Math.PI*2 : Math.PI); ctx.stroke();
     if(frozen){ ctx.strokeStyle = "#eafaff"; ctx.beginPath();
-      ctx.moveTo(t.x-8,t.y-25); ctx.lineTo(t.x-4,t.y-21); ctx.moveTo(t.x+8,t.y-25); ctx.lineTo(t.x+4,t.y-21); ctx.stroke(); }
+      ctx.moveTo(t.x-8,t.y-24); ctx.lineTo(t.x-4,t.y-20); ctx.moveTo(t.x+8,t.y-24); ctx.lineTo(t.x+4,t.y-20); ctx.stroke(); }
   }
   function drawHud(){
     ctx.fillStyle = "#000"; ctx.fillRect(0,0,VW,HUD_H);
@@ -681,7 +671,7 @@ body:not(.mode-paid) .facts{display:none!important}
     ctx.fillStyle = "#f2b6d2"; ctx.fillText("OIL", 96, 27);
     for(var q=0;q<squirtMax;q++){ ctx.fillStyle = (q < squirts) ? "#f07cc0" : "#5a3a4a"; ctx.fillRect(122 + q*10, 23, 7, 9); }
     // lives top-right
-    for(var i=0;i<lives;i++){ var lx = VW - 12 - i*12; ctx.fillStyle = "#f2c14e"; rrect(lx-4, 6, 9, 12, 2); ctx.fill(); }
+    for(var i=0;i<Math.min(lives,8);i++){ var lx = VW - 12 - i*12; ctx.fillStyle = "#f2c14e"; rrect(lx-4, 6, 9, 12, 2); ctx.fill(); }
     ctx.fillStyle = "#c9c2d4"; ctx.font = '10px "Jersey 15", monospace'; ctx.textAlign="right";
     ctx.fillText("shift " + shiftN, VW - 12, 27); ctx.textAlign = "left";
   }
@@ -714,16 +704,26 @@ body:not(.mode-paid) .facts{display:none!important}
       if(Math.abs(x-L.x) < 10){ if(up && L.dn===floor) return L; if(!up && L.up===floor) return L; } }
     return null;
   }
+  // Arcade BurgerTime scoring: knocking a part down = 50; catching nasties on a falling
+  // part pays a DOUBLING chain 500/1000/2000/4000/8000/16000 for 1..6 caught at once,
+  // and the part falls TWO EXTRA LEVELS for every nasty riding it.
+  var DROP_PTS = 50;
+  var RIDE_PTS = [500,1000,2000,4000,8000,16000];
   function dropIng(g){
     if(g.state!=="rest") return;
     g.fromLevel = g.level;
     var riders = 0;
     for(var e=0;e<sEnemies.length;e++){ var en=sEnemies[e];
       if(en.state==="walk" && en.level===g.level && en.x>=g.x-6 && en.x<=g.x+SBW+6){ squashEnemy(en); riders++; } }
+    addScore(DROP_PTS);
+    g.caught = riders;
     g.state="falling";
-    g.fallTo = Math.min(SPLATE_LVL, g.level + 1 + riders);
+    g.fallTo = Math.min(SPLATE_LVL, g.level + 1 + 2*riders);   // arcade: +2 levels per rider
   }
-  function squashEnemy(en){ if(en.state!=="walk") return; en.state="squashed"; en.resp=200; en.frozen=0; score += 100; }
+  // arcade: an extra chef for every 10,000 points
+  var EXTRA_EVERY = 10000, nextChef = EXTRA_EVERY;
+  function addScore(n){ score += n; while(score >= nextChef){ lives++; nextChef += EXTRA_EVERY; } }
+  function squashEnemy(en){ if(en.state!=="walk") return; en.state="squashed"; en.resp=200; en.frozen=0; }
   function updateStack(dt){
     if(sprayFx > 0) sprayFx--;
     if(invuln > 0) invuln--;
@@ -757,7 +757,8 @@ body:not(.mode-paid) .facts{display:none!important}
         if(g.y >= target){
           g.y = target;
           for(var e2=0;e2<sEnemies.length;e2++){ var en2=sEnemies[e2];
-            if(en2.state==="walk" && en2.x>=g.x-6 && en2.x<=g.x+SBW+6 && en2.level>g.fromLevel && en2.level<=g.fallTo){ squashEnemy(en2); } }
+            if(en2.state==="walk" && en2.x>=g.x-6 && en2.x<=g.x+SBW+6 && en2.level>g.fromLevel && en2.level<=g.fallTo){ squashEnemy(en2); g.caught=(g.caught||0)+1; } }
+          if(g.caught>0){ addScore(RIDE_PTS[Math.min(g.caught,RIDE_PTS.length)-1]); g.caught=0; }
           if(g.fallTo >= SPLATE_LVL){
             g.state="plated"; g.level=SPLATE_LVL; sPlated[g.col]++;
           } else {
@@ -774,7 +775,7 @@ body:not(.mode-paid) .facts{display:none!important}
     if(sPlated[0]>=4 && sPlated[1]>=4 && sPlated[2]>=4 && sPlated[3]>=4) stackClear();
   }
   function stackClear(){
-    score += 1000;
+    addScore(1000);
     if(score > hsc){ hsc = score; try{ localStorage.setItem("mrbot_hsc", String(hsc)); }catch(e){} }
     banner("Bots built!", "win", function(){ shiftN++; screen="fetch"; startShift(); state="play"; });
   }
@@ -814,14 +815,8 @@ body:not(.mode-paid) .facts{display:none!important}
   function drawSEnemy(en){
     if(en.state==="squashed") return;
     var frozen = en.frozen>0;
-    var base = frozen ? "#cfe8ee" : en.col;
-    ctx.fillStyle="#160a12"; rrect(en.x-10, en.y-21, 20, 22, 6); ctx.fill();           // outline
-    ctx.fillStyle=base;      rrect(en.x-9, en.y-20, 18, 20, 6); ctx.fill();            // body
-    ctx.fillStyle="rgba(255,255,255,.30)"; rrect(en.x-8, en.y-19, 16, 3, 3); ctx.fill(); // top highlight
-    ctx.fillStyle="rgba(0,0,0,.28)"; ctx.fillRect(en.x-8, en.y-3, 16, 3);              // bottom shadow
-    ctx.fillStyle="#160a12"; ctx.fillRect(en.x-6, en.y-15, 12, 7);                     // screen
-    ctx.fillStyle="#ffe08a"; ctx.fillRect(en.x-4, en.y-14, 3,3); ctx.fillRect(en.x+1, en.y-14, 3,3); // eyes
-    ctx.fillStyle="#160a12"; ctx.fillRect(en.x-5, en.y, 2,2); ctx.fillRect(en.x+3, en.y, 2,2);       // legs
+    ctx.fillStyle = frozen ? "#cfe8ee" : en.col; rrect(en.x-9, en.y-20, 18, 20, 6); ctx.fill();
+    ctx.fillStyle = "#2a1420"; ctx.fillRect(en.x-4, en.y-14, 3,3); ctx.fillRect(en.x+1, en.y-14, 3,3);
     if(frozen){ ctx.strokeStyle="#eafaff"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(en.x-7,en.y-22); ctx.lineTo(en.x-3,en.y-18); ctx.moveTo(en.x+7,en.y-22); ctx.lineTo(en.x+3,en.y-18); ctx.stroke(); }
   }
   function drawBar(g){
@@ -859,7 +854,7 @@ body:not(.mode-paid) .facts{display:none!important}
     ctx.fillStyle="#f2b6d2"; ctx.fillText("WORKSHOP", 100, 12);
     ctx.fillStyle="#f2b6d2"; ctx.fillText("OIL", 100, 27);
     for(var q=0;q<squirtMax;q++){ ctx.fillStyle=(q<squirts)?"#f07cc0":"#5a3a4a"; ctx.fillRect(126+q*10, 23, 7, 9); }
-    for(var i=0;i<lives;i++){ var lx=VW-12-i*12; ctx.fillStyle="#f2c14e"; rrect(lx-4,6,9,12,2); ctx.fill(); }
+    for(var i=0;i<Math.min(lives,8);i++){ var lx=VW-12-i*12; ctx.fillStyle="#f2c14e"; rrect(lx-4,6,9,12,2); ctx.fill(); }
     ctx.fillStyle="#c9c2d4"; ctx.font='10px "Jersey 15", monospace'; ctx.textAlign="right";
     ctx.fillText("round "+shiftN, VW-12, 27); ctx.textAlign="left";
   }
@@ -887,8 +882,8 @@ body:not(.mode-paid) .facts{display:none!important}
   rulesModal.addEventListener("click", function(e){ if(e.target===rulesModal) rulesModal.classList.add("hidden"); });
 
   // init idle scene so canvas isn't blank before start
-  shiftN = 1; score = 0; lives = 3; bonus = 500; invuln = 0; carriedFx = 0;
-  squirts = 3; squirtRegen = 0; sprayFx = 0;
+  shiftN = 1; score = 0; lives = 3; nextChef = EXTRA_EVERY; bonus = 500; invuln = 0; carriedFx = 0;
+  squirts = squirtMax; squirtRegen = 0; sprayFx = 0;
   parts = partDefs(); manholes = newManholes(); resetCam();
   tickers = [
     { x:100, floor:1, y:FLOOR_Y[1], climbing:false, ladder:null, cy:0, spd:0.5, w:20, h:22, mode:"seek", mtimer:0,   wdir:1,  frozen:0 },
@@ -1186,7 +1181,5 @@ body:not(.mode-paid) .facts{display:none!important}
   })();
 })();
 </script>
-<script>/* Auto-open the How-To as an intro on first load (skip Phantom redirect returns). */
-try{var _bpIntro=new URLSearchParams(location.search);if(!_bpIntro.get('phantom_action')&&_bpIntro.get('src')!=='browse'){addEventListener('load',function(){var b=document.getElementById('infoBtn');if(b)b.click();});}}catch(e){}</script>
 </body>
 </html>
