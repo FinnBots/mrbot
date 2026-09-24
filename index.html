@@ -217,6 +217,17 @@ body{
 .wrap > .modebar{ align-self:center; width:auto; max-width:100%; }
 .wrap > .modebar .modepill{ flex:0 0 auto; font-size:12.5px; padding:4px 14px; }
 body:not(.mode-paid) .facts{ display:none; }
+/* Mr Bot EXEMPTION (Founder call, 2026-09-24). Every other game's free-mode line is
+   the same boilerplate ("Free to play · wallet-free · pays nothing"), which the How-To
+   overlay already says — so hiding it costs nothing. Mr Bot's carries GAMEPLAY hints
+   ("fetch the 3 parts · spray OIL to stun"), so hiding it loses information. `.app` is
+   Mr Bot's own wrapper and appears in no other game (checked across the roster); its
+   .facts declares no display of its own, so block is the original value.
+   `!important` is REQUIRED, not defensive: Mr Bot's OWN #pv-optimise block (2026-09-22
+   portrait pass) already carried `body:not(.mode-paid) .facts{display:none!important}` —
+   so that line had been hidden since long before the brand layer existed, and only an
+   !important at higher specificity can bring it back. */
+body:not(.mode-paid) .app .facts{ display:block !important; }
 
 /* ---- 4. DARK THEME — parity with the hub ------------------------------ */
 @media (prefers-color-scheme: dark){
