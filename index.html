@@ -940,9 +940,14 @@ canvas{ touch-action:none; }
     var x = c.x, y = c.y;
     if(invuln>0 && Math.floor(invuln/5)%2===0){ /* blink */ }
     if(camReady){
-      ctx.drawImage(camImg, x-11, y-24, 22, 24);
+      /* ARCADE PARITY (researched 2026-09-25): Data East's BurgerTime hardware draws 8x8
+         characters and 16x16 SPRITES — the chef and the enemies are the SAME size. Ours drew
+         the player 22x24 against enemies of 20x22 (ticker) and 18x20 (workshop), a ~20% hero
+         bias. Now 20x22, equal to the ticker and within a pixel of the workshop bot. Pure
+         render: the collision model does not read these numbers. */
+      ctx.drawImage(camImg, x-10, y-22, 20, 22);
     } else {
-      ctx.fillStyle = "#f2c14e"; rrect(x-10, y-24, 20, 24, 4); ctx.fill();
+      ctx.fillStyle = "#f2c14e"; rrect(x-10, y-22, 20, 22, 4); ctx.fill();
       ctx.fillStyle = "#3e323a"; ctx.fillRect(x-6, y-17, 4,4); ctx.fillRect(x+2, y-17, 4,4);
     }
     // carried part above head
