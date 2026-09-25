@@ -541,7 +541,7 @@ canvas{ touch-action:none; }
   "use strict";
 
   // --- Cam sprite: Bot #106 (brand PFP). Confirm/replace with Pick-a-Bot's exact URL. ---
-  var BOT_106_IMG = "https://arweave.net/_cPSCheRvzVBlZK7QwM-3nXtteMdBbUn-zJhbGRlMmo/106.png";
+  var BOT_106_IMG = "assets/hero/bot-106.png";   /* the LOCAL keyed Bot 106: transparent background, no runtime Arweave fetch */
   var camImg = new Image(); var camReady = false;
   camImg.crossOrigin = "anonymous";
   camImg.onload = function(){ camReady = true; };
@@ -1121,8 +1121,8 @@ canvas{ touch-action:none; }
   function drawSEnemy(en){
     if(en.state==="squashed") return;
     var frozen = en.frozen>0;
-    ctx.fillStyle = frozen ? "#cfe8ee" : en.col; rrect(en.x-9, en.y-20, 18, 20, 6); ctx.fill();
-    ctx.fillStyle = "#2a1420"; ctx.fillRect(en.x-4, en.y-14, 3,3); ctx.fillRect(en.x+1, en.y-14, 3,3);
+    ctx.fillStyle = frozen ? "#cfe8ee" : en.col; rrect(en.x-10, en.y-22, 20, 22, 6); ctx.fill();  /* sprite parity: same 20x22 as the player and the ticker */
+    ctx.fillStyle = "#2a1420"; ctx.fillRect(en.x-5, en.y-15, 3,3); ctx.fillRect(en.x+2, en.y-15, 3,3);
     if(frozen){ ctx.strokeStyle="#eafaff"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(en.x-7,en.y-22); ctx.lineTo(en.x-3,en.y-18); ctx.moveTo(en.x+7,en.y-22); ctx.lineTo(en.x+3,en.y-18); ctx.stroke(); }
   }
   function drawBar(g){
