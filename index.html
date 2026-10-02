@@ -24,29 +24,38 @@
     display:flex; flex-direction:column; align-items:center;
     justify-content:stretch; user-select:none;
   }
-  .app{
-    width:100%; max-width:1400px; height:100dvh;
+  .wrap{
+    /* 520px, not 1400: Mr Bot is a 320x480 portrait board, so a wide frame
+       would stretch the chrome either side of a narrow canvas. (Carried over
+       from the 2026-09-22 portrait pass, which expressed it as an !important
+       override in a hand-injected block; it is a plain rule now.) */
+    width:100%; max-width:520px; height:100dvh;
     background:var(--peach);
     display:flex; flex-direction:column;
     box-shadow:0 0 0 1px rgba(95,76,87,.12);
   }
-  /* 1 topbar */
-  .topbar{background:var(--plum); color:#fff; padding:8px 14px 10px; flex:0 0 auto;}
+  /* 1 topbar — ONE slim row (title · mode pills · info), as every other game.
+     It used to stack a .titlerow above a .modebar: 105.5px of a 768px-tall
+     laptop viewport, measured. Mr Bot is portrait and height-bound, so every
+     pixel of chrome comes straight out of the play area. */
+  .topbar{background:var(--plum); color:#fff; padding:6px 14px; flex:0 0 auto;
+          display:flex; align-items:center; gap:8px; min-height:32px;}
   .eyebrow{font-family:var(--disp); font-size:12px; letter-spacing:.14em; color:var(--amber);}
-  .titlerow{display:flex; align-items:center; justify-content:space-between; gap:8px;}
-  .title{font-family:var(--disp); font-size:26px; line-height:1; margin:0;}
-  .info{width:26px;height:26px;border:1.5px solid #fff;border-radius:50%;background:none;color:#fff;
-        font-family:var(--disp);font-size:15px;cursor:pointer;}
-  .modestrip{display:flex; gap:6px; margin-top:8px;}
+  .title{font-family:var(--disp); font-size:22px; line-height:1; margin:0; flex:1;
+         overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .iconbtn{width:26px;height:26px;border:1.5px solid #fff;border-radius:50%;background:none;color:#fff;
+        font-family:var(--disp);font-size:15px;cursor:pointer;flex:none;}
   .mode{font-family:var(--disp); font-size:13px; padding:2px 12px; border-radius:11px;}
   .mode.free{background:var(--amber); color:var(--plum-deep);}
   .mode.paid{border:1px solid #b9a7ae; color:#c9b7be;}
   /* 2 quick-facts */
   .facts{background:#f6e2cb; color:#7a5a34; font-size:13px; padding:6px 14px; flex:0 0 auto;}
-  /* 3 status */
-  .status{background:#f3ede4; color:#6f6a63; font-size:12px; padding:5px 14px; flex:0 0 auto;}
+  /* 3 status — HIDDEN, like the chassis. It was a static 19px line reading
+     "Playing free — wallet not used"; no script ever wrote to it, and the real
+     wallet state has its own element (#walletStatus, .wallet-status). */
+  .status{display:none;}
   /* 4 play */
-  .stage{position:relative; flex:1 1 auto; min-height:0; background:#000; display:flex;}
+  .surface{position:relative; flex:1 1 auto; min-height:0; background:#000; display:flex;}
   canvas{display:block; margin:auto; image-rendering:pixelated; touch-action:none;
           max-width:100%; max-height:100%;}
   .overlay{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
@@ -62,26 +71,34 @@
   .btn:disabled{opacity:.5; cursor:default;}
   .hidden{display:none !important;}
   /* 5 action bar */
-  .actions{flex:0 0 auto; background:var(--peach); padding:8px 14px;
-           display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:66px;}
+  .controls{flex:0 0 auto; background:var(--peach); padding:5px 14px;
+           display:flex; align-items:center; justify-content:space-between; gap:10px;}
   .startwrap{display:flex; flex-direction:column; gap:2px;}
   .hint{font-size:10px; color:var(--muted);}
   .dpad{display:grid; grid-template-columns:repeat(3,40px); grid-template-rows:repeat(3,34px); gap:4px;}
-  .dpad button{border:1px solid #cdbcae; background:#f3ede4; border-radius:8px; color:var(--plum);
+  .dpad button, .dpad .ctl{border:1px solid #cdbcae; background:#f3ede4; border-radius:8px; color:var(--plum);
     font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center;}
-  .dpad button:active,.dpad button.on{background:var(--amber); color:var(--plum-deep);}
+  .dpad button:active,.dpad button.on,.dpad .ctl:active,.dpad .ctl.on{background:var(--amber); color:var(--plum-deep);}
   .dpad .up{grid-area:1/2/2/3;} .dpad .left{grid-area:2/1/3/2;}
   .dpad .down{grid-area:3/2/4/3;} .dpad .right{grid-area:2/3/3/4;}
-  .ctrls{display:flex; align-items:center; gap:10px;}
+  .ctrls{display:contents;}          /* the pad and the button are laid out by .controls */
+  #dpad{order:-1;}                   /* movement: left hand */
+  .startwrap{order:1;}
+  #fireBtn{order:2; width:66px; height:66px; flex:none;}   /* action: right hand, thumb-sized.
+                                 flex:none because the row is tight at 375px and a shrunk
+                                 round button renders as an OVAL (measured 55x66 on a phone). */
   .fire{width:52px; height:52px; border-radius:50%; border:none; background:var(--amber);
         color:var(--plum-deep); font-family:var(--disp); font-size:15px; cursor:pointer;}
   .fire:active,.fire.on{background:#d98322;}
   /* 6 footer */
-  .footer{flex:0 0 auto; background:#f6ecdd; text-align:center; padding:7px 10px 9px;}
-  .footer .tag{font-family:var(--disp); font-size:13px; color:#7a5a34;}
-  .footer .links{font-size:12px; margin-top:2px;}
-  .footer a{color:var(--muted); text-decoration:none; margin:0 6px;}
-  .footer a:hover{color:var(--plum);}
+  /* 5 footer — HIDDEN, as .foot is on every chassis game: the FinnBots lockup
+     and the hub link are already in the topbar, so this was 37px of duplicate. */
+  .foot{display:none;}
+  .foot-was{flex:0 0 auto; background:#f6ecdd; text-align:center; padding:7px 10px 9px;}
+  .foot .tag{font-family:var(--disp); font-size:13px; color:#7a5a34;}
+  .foot .links{font-size:12px; margin-top:2px;}
+  .foot a{color:var(--muted); text-decoration:none; margin:0 6px;}
+  .foot a:hover{color:var(--plum);}
   .rules{position:absolute; inset:0; background:rgba(62,50,58,.55); display:flex;
          align-items:center; justify-content:center; padding:20px; z-index:5;}
   .rules .card{max-width:320px; text-align:left;}
@@ -91,7 +108,7 @@
   .testBanner{flex:0 0 auto; background:var(--amber); color:#4a2c10; font-weight:700; text-align:center;
               font-size:12px; padding:5px 10px;}
   .testBanner.hidden{display:none;}
-  .modebar{display:flex; gap:6px; margin-top:8px; background:rgba(255,255,255,.14); border-radius:12px; padding:3px;}
+  .modebar{display:flex; gap:6px; background:rgba(255,255,255,.14); border-radius:12px; padding:3px; flex:none;}
   .modepill{flex:1; appearance:none; border:none; cursor:pointer; font-family:var(--disp); font-size:14px;
             padding:5px 10px; border-radius:10px; background:transparent; color:#e7d7de;}
   .modepill.active{background:var(--amber); color:var(--plum-deep);}
@@ -121,25 +138,6 @@
         font-weight:600; font-size:14px; background:transparent; color:var(--plum); padding:9px 18px;
         border-radius:10px; display:block; width:100%; box-sizing:border-box; text-decoration:none; margin-bottom:8px;}
   .panel .ghostbtn:last-child{margin-bottom:0;}
-</style>
-<style id="pv-optimise">
-/* Portrait play-area optimisation (2026-09-22): Mr Bot is portrait (320x480) & height-bound —
-   reclaim vertical chrome + revert the .app width so the canvas grows and the frame stays tidy. */
-.app{max-width:520px!important}
-.topbar{padding:6px 14px 8px!important}
-body:not(.mode-paid) .facts{display:none!important}
-.status{padding:2px 14px!important}
-.actions{min-height:0!important;padding:5px 14px!important}
-.dpad{grid-template-columns:repeat(3,44px)!important;grid-template-rows:repeat(3,36px)!important}
-.footer{padding:3px 10px 4px!important;font-size:11px!important}
-</style>
-<style id="pv-controls">
-/* Arcade control layout (2026-09-22): movement left hand, action right hand, max separation */
-.ctrls{display:contents!important}
-.actions{justify-content:space-between!important;align-items:center!important}
-#dpad{order:-1!important}
-.startwrap{order:1!important}
-#fireBtn{order:2!important;width:66px!important;height:66px!important}
 </style>
 <style id="fb-brand">
 /* ===== FINNBOTS BRAND LAYER v1 (2026-09-24) ==========================
@@ -493,17 +491,15 @@ canvas{ touch-action:none; }
 </style>
 </head>
 <body>
-<div class="app">
+<div class="wrap app">
   <header class="topbar">
     <!--fb:eyebrow--><a class="fb-mark" href="https://games.finnstergram.com" aria-label="FinnBots — more games"><svg class="fb-bot" viewBox="0 0 28 28" aria-hidden="true" focusable="false"><path d="M14 5.4V3.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="2" r="1.85" fill="var(--fb-amber)"/><rect x="1" y="11" width="2.6" height="6" rx="1.3" fill="currentColor"/><rect x="24.4" y="11" width="2.6" height="6" rx="1.3" fill="currentColor"/><rect x="3.6" y="5" width="20.8" height="18" rx="5.5" fill="currentColor"/><rect x="6.6" y="8.6" width="14.8" height="9.4" rx="2.6" fill="var(--fb-screen)"/><circle cx="10.7" cy="13.3" r="1.9" fill="var(--fb-amber)"/><circle cx="17.3" cy="13.3" r="1.9" fill="var(--fb-amber)"/></svg><span class="fb-word">FINN<i>BOTS</i></span></a><!--/fb-->
-    <div class="titlerow">
-      <h1 class="title">Mr Bot</h1>
-      <button class="info" id="infoBtn" aria-label="How to play">i</button>
-    </div>
+    <h1 class="title">Mr Bot</h1>
     <div class="modebar" role="tablist">
-      <button class="modepill active" id="modeFree" type="button" role="tab">Free play</button>
-      <button class="modepill" id="modePaid" type="button" role="tab">Paid · 25 OIL</button>
+      <button class="modepill active" id="modeFree" type="button" role="tab">Free</button>
+      <button class="modepill" id="modePaid" type="button" role="tab">Paid · 25</button>
     </div>
+    <button class="iconbtn" id="infoBtn" aria-label="How to play">i</button>
   </header>
 
   <div class="testBanner hidden" id="testBanner">🧪 TEST MODE — local validator, fake $OIL. No real value moves.</div>
@@ -519,7 +515,7 @@ canvas{ touch-action:none; }
   <div class="facts">Free · no wallet · fetch the 3 parts · spray OIL to stun</div>
   <div class="status">Playing free — wallet not used</div>
 
-  <div class="stage" id="stage">
+  <div class="surface" id="stage">
     <canvas id="game" width="320" height="480" aria-label="Mr Bot kitchen"></canvas>
     <div class="overlay" id="overOverlay">
       <!-- The run-over card is STATIC and hidden, not built at game-over.
@@ -556,23 +552,23 @@ canvas{ touch-action:none; }
     </div>
   </div>
 
-  <div class="actions">
+  <div class="controls">
     <div class="startwrap">
       <button class="btn" id="startBtn2">Start shift</button>
       <span class="hint">arrows / WASD · pad · OIL sprays →</span>
     </div>
     <div class="ctrls">
-      <button class="fire" id="fireBtn" aria-label="Spray OIL">OIL</button>
+      <button class="ctl fire" id="fireBtn" aria-label="Spray OIL">OIL</button>
       <div class="dpad" id="dpad" aria-hidden="false">
-      <button class="up" data-dir="up" aria-label="Up">▲</button>
-      <button class="left" data-dir="left" aria-label="Left">◀</button>
-      <button class="down" data-dir="down" aria-label="Down">▼</button>
-      <button class="right" data-dir="right" aria-label="Right">▶</button>
+      <button class="ctl up" data-dir="up" aria-label="Up">▲</button>
+      <button class="ctl left" data-dir="left" aria-label="Left">◀</button>
+      <button class="ctl down" data-dir="down" aria-label="Down">▼</button>
+      <button class="ctl right" data-dir="right" aria-label="Right">▶</button>
       </div>
     </div>
   </div>
 
-  <footer class="footer">
+  <footer class="foot">
     <div class="tag">a FinnBots game</div>
     <div class="links">
       <a href="https://magiceden.io/marketplace/finnbot" target="_blank" rel="noopener">Buy a Bot</a>·
@@ -624,8 +620,18 @@ canvas{ touch-action:none; }
 
   // fit canvas to its container, preserving aspect
   function fit(){
+    /* CONTENT box, not the padding box. `clientWidth/clientHeight` INCLUDE the
+       host's padding, so fitting to them asks for more room than exists and the
+       canvas comes out stretched. This was latent for as long as Mr Bot's play
+       area had no padding of its own; the moment it joined the chassis and the
+       shared brand layer's `.surface{padding:12px}` reached it, the board went
+       to 0.696 against its own 0.6667 — measured, 4.4% wide. Same fix the other
+       fifteen canvas games carry. */
     var st = document.getElementById("stage");
-    var w = st.clientWidth, h = st.clientHeight;
+    var cs = getComputedStyle(st);
+    var px = (parseFloat(cs.paddingLeft)||0) + (parseFloat(cs.paddingRight)||0);
+    var py = (parseFloat(cs.paddingTop)||0) + (parseFloat(cs.paddingBottom)||0);
+    var w = Math.max(0, st.clientWidth - px), h = Math.max(0, st.clientHeight - py);
     var s = Math.min(w / VW, h / VH);
     cv.style.width = Math.floor(VW * s) + "px";
     cv.style.height = Math.floor(VH * s) + "px";
