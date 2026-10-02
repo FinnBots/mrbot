@@ -1438,7 +1438,7 @@ try{var _bpIntro=new URLSearchParams(location.search);if(!_bpIntro.get('phantom_
     }
 
     // ---- score memo (MRBT — no seed, no move-log, no replay; records NOT verified) ----
-    function buildScoreMemo(res){ return MEMO_TAG+'|score|sig='+String(entrySig).slice(0,32)+'|rounds='+res.rounds+'|time='+res.timeMs; }
+    function buildScoreMemo(res){ return MEMO_TAG+'|score|sig='+String(entrySig).slice(0,32)+'|rounds='+res.rounds+'|time='+Math.round(res.timeMs); }
 
     // ---- flow glue (Mr Bot: single-run action game) ------------------------
     function relabelStart(){
