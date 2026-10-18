@@ -1051,11 +1051,11 @@ body:not(.mode-paid) .app .facts{ display:block !important; }
     <div class="wallet-status hidden" id="walletStatus"></div>
   </div>
 
-  <div class="facts">Free · no wallet · fetch the 3 parts · spray OIL to stun</div>
+  <div class="facts">Free · no wallet · carry 3 FinnBot parts to the Bot Bay · spray OIL to stun</div>
   <div class="status">Playing free — wallet not used</div>
 
   <div class="surface" id="stage">
-    <canvas id="game" width="320" height="480" aria-label="Mr Bot kitchen"></canvas>
+    <canvas id="game" width="320" height="480" aria-label="Mr Bot workshop"></canvas>
     <div class="overlay" id="overOverlay">
       <!-- The run-over card is STATIC and hidden, not built at game-over.
            The shared stickiness layer binds to #overCard / #oScore when the
@@ -1070,7 +1070,7 @@ body:not(.mode-paid) .app .facts{ display:block !important; }
       </div>
       <div class="card" id="startCard">
         <h2>Mr Bot</h2>
-        <p>Fetch the three parts and carry each to the larder. Mind the manholes and Ticker.</p>
+        <p>Carry a FinnBot&rsquo;s head, body and arms to the Bot Bay, then build four Bots in the workshop. Mind the hatches and the Tickers.</p>
         <button class="btn" id="startBtn">Start shift</button>
       </div>
     </div>
@@ -1085,11 +1085,12 @@ body:not(.mode-paid) .app .facts{ display:block !important; }
         <ul>
           <li>Move with the arrows or the on-screen pad.</li>
           <li>Up / down climb ladders when you line up with one.</li>
-          <li>Walk onto a part to carry it — one at a time.</li>
-          <li>Take it to the larder (top-left) to drop it off.</li>
-          <li>Head, Body and Arms delivered = shift fetched.</li>
-          <li>Spray $OIL (fire / space / the OIL button) to freeze a Ticker briefly.</li>
-          <li>Open manholes and the Tickers cost a life. You have 3.</li>
+          <li>Walk onto a FinnBot part to lift it overhead — one at a time.</li>
+          <li>Carry it to the Bot Bay (top-left) — the Bot builds itself as the parts arrive.</li>
+          <li>Head, Body and Arms delivered = on to the workshop.</li>
+          <li>Workshop: walk the full length of a part to drop it a floor. Stack head, chest, arms and legs on each pad to build four FinnBots. Drop a part on a nasty for a big bonus.</li>
+          <li>Spray $OIL (fire / space / the OIL button) to gum up a Ticker or a workshop nasty for a moment.</li>
+          <li>An open hatch (red edges) or a nasty costs a life. You have 3.</li>
         </ul>
         <button class="btn" id="rulesClose">Got it</button>
       </div>
@@ -1620,138 +1621,374 @@ body:not(.mode-paid) .app .facts{ display:block !important; }
   }
 
   // ---- draw ----
+  /* ===== THE ART — reworked 2026-10-18. Founder, verbatim: "The game graphics of Mr Bot need to
+     be completely reworked the enemy sprits are bad and the idea is MR Bot needs to carry pieces of
+     FINNBOTS aound". So the three parts are a FinnBot's HEAD, BODY and ARMS, carried overhead to
+     the BOT BAY where they visibly assemble; the workshop's four layers are a FinnBot's head,
+     chest, arms and legs, stacking into four whole Bots; and every enemy is a real sprite.
+
+     PURE RENDER. Nothing below writes the run state or feeds the sim: hit boxes, speeds and
+     positions are untouched, and every sprite is drawn at the 20x22 the cast shares (the arcade's
+     16x16 sprite parity, CLONE-FIDELITY-AUDIT). The sprites are pixel maps in the FinnBots house
+     style — ink outline, panel blues, round eyes, grille mouth, antennae, a heart on the chest —
+     run-length encoded once, and drawn as rects snapped to the SUPERSAMPLED backing store's
+     device pixels so adjacent runs never leave a seam. A draw-only clock (animT) and a WeakMap of
+     last positions give walk cycles and facing without a single new field on the run. ===== */
+  var animT = 0;
+  var lastX = (typeof WeakMap !== "undefined") ? new WeakMap() : null;
+  var INK = "#151021";
   function rrect(x,y,w,h,r){ ctx.beginPath();
     ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
     ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+  function mix(a, b, t){
+    var A = parseInt(a.slice(1), 16), B = parseInt(b.slice(1), 16);
+    function ch(s){ var p = (A >> s) & 255, q = (B >> s) & 255; return Math.round(p + (q - p) * t); }
+    return "#" + ((1 << 24) | (ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).slice(1);
+  }
+  function mkSprite(rows, pal){
+    var runs = [], w = rows[0].length;
+    for(var y = 0; y < rows.length; y++){ var r = rows[y], x = 0;
+      while(x < w){ var ch = r.charAt(x); if(ch === "."){ x++; continue; }
+        var x0 = x; while(x < w && r.charAt(x) === ch) x++;
+        runs.push([x0, y, x - x0, ch]); } }
+    return { w:w, h:rows.length, runs:runs, pal:pal };
+  }
+  /* OILED: every colour washed toward the OIL glaze; the outline stays dark so the shape reads. */
+  function icePal(pal){ var o = {}; for(var k in pal){ o[k] = (k === "K") ? "#2a3550" : mix(pal[k], "#ffd6ec", 0.55); } return o; }
+  function ghostPal(pal){ var o = {}; for(var k in pal){ o[k] = (k === "K") ? "rgba(150,180,240,.45)" : "rgba(150,180,240,.13)"; } return o; }
+  function snap(v){ return Math.round(v * SS) / SS; }
+  function blit(spr, x, y, dw, dh, flip, pal){
+    var sx = dw / spr.w, sy = dh / spr.h, P = pal || spr.pal, runs = spr.runs;
+    for(var i = 0; i < runs.length; i++){ var r = runs[i];
+      var c0 = flip ? (spr.w - r[0] - r[2]) : r[0];
+      var x0 = snap(x + c0 * sx), x1 = snap(x + (c0 + r[2]) * sx);
+      var y0 = snap(y + r[1] * sy), y1 = snap(y + (r[1] + 1) * sy);
+      ctx.fillStyle = P[r[3]]; ctx.fillRect(x0, y0, x1 - x0, y1 - y0); }
+  }
 
-  function brickRow(x,y,w){
-    ctx.fillStyle = "#c0392b"; ctx.fillRect(x,y,w,10);
-    ctx.strokeStyle = "rgba(232,217,200,.5)"; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(x,y+5); ctx.lineTo(x+w,y+5); ctx.stroke();
+  /* ---- the FinnBot colourways: one per shift on the fetch screen, one per column in the workshop ---- */
+  var BOTPAL = [
+    { m:"#4f97de", l:"#a6d8f7", d:"#2b5d9e" },   // the Bot 2969 blue
+    { m:"#f0953a", l:"#ffd296", d:"#a4531a" },
+    { m:"#45b981", l:"#a9eec8", d:"#22744c" },
+    { m:"#df6aa5", l:"#ffb8da", d:"#923868" }
+  ];
+  function piecePal(bp){ return { K:INK, b:bp.m, l:bp.l, B:bp.d, W:"#f6f9ff", k:INK, R:"#ff3b4e", r:"#ffb0b8",
+    p:"#c58cff", y:"#ffd23f", c:"#39c6ff", g:"#c3cbdb", G:"#7c879c" }; }
+
+  /* ---- the three parts Mr Bot carries (fetch screen), 16 px wide ---- */
+  var PIECE_ROWS = {
+    H: [ "...pp......pp...",
+         "....K......K....",
+         ".KKKKKKKKKKKKKK.",
+         ".KllllllllllllK.",
+         ".KbWWWbbbbWWWbK.",
+         "gKbWkWbbbbWkWbKg",
+         "gKbWWWbbbbWWWbKg",
+         ".KbbbbbbbbbbbbK.",
+         ".KbKKKKKKKKKKbK.",
+         ".KbKWWKWWKWWKbK.",
+         ".KbKKKKKKKKKKbK.",
+         ".KBBBBBBBBBBBBK.",
+         ".KKKKKKKKKKKKKK." ],
+    B: [ ".KKKKKKKKKKKKKK.",
+         ".KllllllllllllK.",
+         "gKblbbbbbbbblbKg",
+         "gKbbbbbRRbbRRbKg",
+         ".KbcbbbRRRRRRbK.",
+         ".KbbbbbRrRRRRbK.",
+         ".KbybbbbRRRRbbK.",
+         ".KbbbbbbbRRbbbK.",
+         ".KbbbbbbbbbbbbK.",
+         ".KbKWKbbbbKWKbK.",
+         ".KBBBBBBBBBBBBK.",
+         ".KKKKKKKKKKKKKK." ],
+    A: [ "..KKKK....KKKK..",
+         ".KbbbbK..KbbbbK.",
+         ".KblbbK..KblbbK.",
+         "..KKKK....KKKK..",
+         "..KgGK....KgGK..",
+         "..KGgK....KGgK..",
+         "..KgGK....KgGK..",
+         "..KGgK....KGgK..",
+         ".KbKKbK..KbKKbK.",
+         ".Kb..bK..Kb..bK.",
+         ".KK..KK..KK..KK." ]
+  };
+  var PIECES = BOTPAL.map(function(bp){ var pal = piecePal(bp), o = {};
+    for(var t in PIECE_ROWS){ o[t] = mkSprite(PIECE_ROWS[t], pal); o[t].ghost = ghostPal(pal); } return o; });
+  function botPal(){ return PIECES[((shiftN || 1) - 1) % PIECES.length]; }
+
+  /* ---- the cast. Each is a body plus two walk frames, 16 px wide, drawn into the shared 20x22. ---- */
+  function frames(top, legsA, legsB, pal){
+    var a = mkSprite(top.concat(legsA), pal), b = mkSprite(top.concat(legsB), pal);
+    a.ice = b.ice = icePal(pal); return [a, b];
+  }
+  /* TICKER — a clockwork wind-up beetle (fetch screen). The key on its back turns. */
+  var TICK_BODY = [ "....KKKKKKKK....",
+                    "..KKccccccccKK..",
+                    ".KccWWWWWWWWccK.",
+                    ".KcWKWWKKWWKWcK.",
+                    "KcWWWKWWWWKWWWcK",
+                    "KcWWKrKWWKrKWWcK",
+                    "KcWWKKKWWKKKWWcK",
+                    "KcWWWWWWWWWWWWcK",
+                    ".KcWWKWKWKWKWcK.",
+                    ".KcWWWKWKWKWWcK.",
+                    ".KccWWWWWWWWccK.",
+                    "..KKccccccccKK.." ];
+  var TICK_KEY = [ [ "....KKK..KKK....", "....KyyKKyyK....", ".....KKyyKK.....", "......KyyK......" ],
+                   [ "......KKKK......", "......KyyK......", "......KyyK......", "......KyyK......" ] ];
+  var TICK_LEGS = [ [ "...KcK....KcK...", "..KKKK....KKKK.." ], [ "....KcK..KcK....", "...KKKK..KKKK..." ] ];
+  var TICK_PAL = { K:INK, c:"#22a9b6", W:"#f3efe2", r:"#ff3d55", y:"#ffcf3a" };
+  var TICKER = [0,1].map(function(k){ return frames(TICK_KEY[k].concat(TICK_BODY), TICK_LEGS[0], TICK_LEGS[1], TICK_PAL); });
+
+  /* MAGNET — a horseshoe magnet walking on its poles (workshop). */
+  var MAG = frames(
+    [ "....KKKKKKKK....",
+      "..KKRRRRRRRRKK..",
+      ".KRhhRRRRRRRRRK.",
+      ".KRRWWRRRRWWRRK.",
+      "KRRRWkRRRRkWRRRK",
+      "KRRRRRKKKKRRRRRK",
+      "KRRRKKKKKKKKRRRK",
+      "KRRRK......KRRRK",
+      "KRRRK......KRRRK",
+      "KRRRK......KRRRK" ],
+    [ "KRRRK......KRRRK", "KKKKK......KRRRK", "KsssK......KKKKK", "KsssK......KsssK", "KKKKK......KsssK", "...........KKKKK" ],
+    [ "KRRRK......KRRRK", "KRRRK......KKKKK", "KKKKK......KsssK", "KsssK......KsssK", "KsssK......KKKKK", "KKKKK..........." ],
+    { K:INK, R:"#e8413c", h:"#ff9c8a", W:"#f6f9ff", k:INK, s:"#dfe5ee" });
+  /* SPARK — a crackling short-circuit gremlin (workshop). */
+  var SPARK = frames(
+    [ "...K....K....K..",
+      "....K..KPK..K...",
+      ".....KKPPPKK....",
+      "..K.KPPPPPPPK.K.",
+      "...KPPYYYYYPPK..",
+      ".KKPPYYYYYYYPPKK",
+      "..KPYYWWYYWWYPK.",
+      "..KPYYWKYYWKYPK.",
+      "KKKPYYYYYYYYYPKK",
+      "..KPYYKYKYKYYPK.",
+      "...KPYYYYYYYPK..",
+      ".KK.KPPPPPPPK.KK",
+      "....KKPPPPPKK...",
+      "...K..KKKKK..K.." ],
+    [ ".....KK..KK.....", "....KK....KK...." ],
+    [ ".....KK..KK.....", "......KK..KK...." ],
+    { K:INK, P:"#8e5cf0", Y:"#ffe14d", W:"#f6f9ff" });
+  /* NUTTER — a bronze hex nut with a bolt-hole mouth (workshop). */
+  var NUT = frames(
+    [ ".....KKKKKK.....",
+      "....KbbbbbbK....",
+      "...KbhhbbbbbK...",
+      "..KbhbbbbbbbbK..",
+      ".KbbWWbbbbWWbbK.",
+      ".KbbWkbbbbkWbbK.",
+      "KbbbbbbbbbbbbbbK",
+      "KbbbbbKKKKbbbbbK",
+      "KbbbbKddddKbbbbK",
+      "KbbbbKdKKdKbbbbK",
+      "KbbbbbKKKKbbbbbK",
+      ".KBbbbbbbbbbbBK.",
+      "..KBBbbbbbbBBK..",
+      "...KBBBBBBBBK...",
+      "....KKKKKKKK...." ],
+    [ "....KbK..KbK....", "...KKK....KKK..." ],
+    [ "...KbK....KbK...", "..KKK......KKK.." ],
+    { K:INK, b:"#c48d3f", h:"#f4cf8f", B:"#7a5220", W:"#f6f9ff", k:INK, d:"#2a1606" });
+  /* RUSTLE — a dripping rust blob (workshop). */
+  var RUST = frames(
+    [ "......KKKK......",
+      "....KKoooOKK....",
+      "...KooOOooooK...",
+      "..KoOOooooooooK.",
+      ".KooWWWooWWWoooK",
+      ".KooWKWooWKWoooK",
+      ".KoooooooooooooK",
+      "KoooooKKKKoooooK",
+      "KooooKrrrrKooooK",
+      "KoooooKKKKoooooK",
+      ".KoroooooooorooK",
+      ".KoooooooooooooK",
+      "..KooKoooKooKoK." ],
+    [ "...KK.KoK.KK.K..", "......KK........" ],
+    [ "...KK..KK.KoK.K.", "...........KK..." ],
+    { K:INK, o:"#d9722a", O:"#ffb366", r:"#8a3a12", W:"#f6f9ff" });
+  var SKIN = { Sid:MAG, Ogy:SPARK, Sam:NUT, Pam:RUST };
+
+  function stepFrame(a){ return (a.climbing ? Math.floor(a.y / 4) : Math.floor(a.x / 4)) & 1; }
+  var lastF = lastX ? new WeakMap() : null;
+  function enemyFacing(a){
+    if(!lastX) return 1;
+    var p = lastX.get(a), f = lastF.get(a) || 1; lastX.set(a, a.x);
+    if(p !== undefined && Math.abs(a.x - p) > 0.01) f = (a.x < p) ? -1 : 1;
+    lastF.set(a, f); return f;
+  }
+
+  /* ---- the board: a steel workshop ---- */
+  function backdrop(floors){
+    ctx.fillStyle = "#1a2242"; ctx.fillRect(0, 0, VW, VH);
+    ctx.fillStyle = "#212a50";
+    for(var px = 40; px < VW - 20; px += 40) ctx.fillRect(px, HUD_H, 1, VH - HUD_H);
+    for(var f = 0; f < floors.length; f++){
+      var py = floors[f] - 30;
+      ctx.fillStyle = "#252f58"; ctx.fillRect(20, py, VW - 40, 5);
+      ctx.fillStyle = "#2e3967"; ctx.fillRect(20, py, VW - 40, 1);
+      ctx.fillStyle = "#2a3460"; for(var jx = 46 + (f % 2) * 30; jx < VW - 26; jx += 64) ctx.fillRect(jx, py - 1, 4, 7);
+    }
+    for(var side = 0; side < 2; side++){
+      var x = side ? VW - 20 : 0;
+      ctx.fillStyle = "#1b2546"; ctx.fillRect(x, HUD_H, 20, VH - HUD_H);
+      ctx.fillStyle = "#2c3a68"; ctx.fillRect(side ? x : x + 17, HUD_H, 3, VH - HUD_H);
+      ctx.fillStyle = "#3b4c82"; for(var ry = HUD_H + 10; ry < VH; ry += 22){ ctx.fillRect(x + 5, ry, 2, 2); ctx.fillRect(x + 12, ry, 2, 2); }
+    }
+  }
+  function girder(x, y, w){
+    ctx.fillStyle = "#2b3a63"; ctx.fillRect(x, y, w, 10);
+    ctx.fillStyle = "#93aadb"; ctx.fillRect(x, y, w, 2);
+    ctx.fillStyle = "#5e76ad"; ctx.fillRect(x, y + 2, w, 1);
+    ctx.fillStyle = "#18213d"; ctx.fillRect(x, y + 8, w, 2);
+    ctx.fillStyle = "#6a83bb"; for(var rx = x + 6; rx < x + w - 2; rx += 16) ctx.fillRect(rx, y + 5, 2, 2);
   }
   function ladder(L, y0, y1){
-    ctx.strokeStyle = "#8a8296"; ctx.lineWidth = 1.4;
-    ctx.beginPath(); ctx.moveTo(L.x-5,y0); ctx.lineTo(L.x-5,y1);
-    ctx.moveTo(L.x+5,y0); ctx.lineTo(L.x+5,y1); ctx.stroke();
-    for(var yy=y0+8; yy<y1; yy+=12){ ctx.beginPath(); ctx.moveTo(L.x-5,yy); ctx.lineTo(L.x+5,yy); ctx.stroke(); }
+    ctx.fillStyle = "#e0ad2e"; ctx.fillRect(L.x - 7, y0 - 4, 2, y1 - y0 + 4); ctx.fillRect(L.x + 5, y0 - 4, 2, y1 - y0 + 4);
+    ctx.fillStyle = "#a9791a"; for(var yy = y0 + 4; yy < y1 - 2; yy += 8) ctx.fillRect(L.x - 5, yy, 10, 2);
   }
-  function partTile(x,y,col,tcol,label){
-    ctx.fillStyle = col; rrect(x-14,y-8,28,14,3); ctx.fill();
-    ctx.fillStyle = tcol;
-    ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.font = '12px "Jersey 15", monospace';
-    ctx.fillText(label, x, y);
+  function hatch(m){
+    var y = FLOOR_Y[m.floor], x0 = m.x - m.w / 2;
+    for(var i = 0; i < m.w; i += 5){ ctx.fillStyle = ((i / 5) & 1) ? INK : "#f2c230"; ctx.fillRect(x0 + i, y, Math.min(5, m.w - i), 2); }
+    if(m.open > 0.02){
+      var gw = m.w * Math.min(1, m.open), lethal = m.open > 0.5;
+      ctx.fillStyle = "#000"; ctx.fillRect(m.x - gw / 2, y, gw, 10);
+      ctx.fillStyle = lethal ? "#ff4b4b" : "#f2c230";
+      ctx.fillRect(m.x - gw / 2 - 1, y, 1, 10); ctx.fillRect(m.x + gw / 2, y, 1, 10);
+      if(lethal){ ctx.fillStyle = "rgba(255,70,70,.28)"; ctx.fillRect(m.x - gw / 2, y + 10, gw, 5); }
+    }
+  }
+  function sprayPuff(floorY){
+    var sy = floorY - 11;
+    for(var k = 0; k < 4; k++){
+      var sx = sprayX + sprayDir * (14 + k * 11), r = 5 - k + (sprayFx & 1);
+      ctx.fillStyle = (k % 2 === 0) ? "#f07cc0" : "#ffb347";
+      ctx.beginPath(); ctx.arc(sx, sy + ((k & 1) ? 2 : -2), Math.max(1.5, r), 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  function lifeIcons(){
+    var P = PIECES[0].H;
+    for(var i = 0; i < Math.min(lives, 8); i++) blit(P, VW - 18 - i * 13, 4, 12, 11, false);
   }
 
   function draw(){
-    if(!ctx) return; if(screen === "stack") drawStack(); else drawFetch(); }
+    if(!ctx) return; animT++; if(screen === "stack") drawStack(); else drawFetch(); }
   function drawFetch(){
     ctx.clearRect(0,0,VW,VH);
-    // play bg
-    ctx.fillStyle = "#000"; ctx.fillRect(0,0,VW,VH);
-    // side pillars
-    ctx.fillStyle = "#123fd6"; ctx.fillRect(0,HUD_H,20,VH-HUD_H); ctx.fillRect(VW-20,HUD_H,20,VH-HUD_H);
-
-    // floors (brick) between pillars, with manhole gaps drawn after
-    for(var f=0; f<FLOOR_Y.length; f++){ brickRow(20, FLOOR_Y[f], VW-40); }
-
-    // manholes
-    for(var i=0;i<manholes.length;i++){
-      var m = manholes[i]; var y = FLOOR_Y[m.floor];
-      if(m.open > 0.02){
-        var gw = m.w * Math.min(1, m.open);
-        ctx.fillStyle = "#000"; ctx.fillRect(m.x - gw/2, y-1, gw, 12);
-        ctx.strokeStyle = "#e2b93f"; ctx.lineWidth = 1;
-        ctx.strokeRect(m.x - m.w/2, y-1, m.w, 12);
-      } else {
-        ctx.fillStyle = "#9c2f22"; ctx.fillRect(m.x - m.w/2, y, m.w, 10);
-      }
-    }
-
-    // ladders
+    backdrop(FLOOR_Y);
+    for(var f=0; f<FLOOR_Y.length; f++){ girder(20, FLOOR_Y[f], VW-40); }
+    for(var i=0;i<manholes.length;i++) hatch(manholes[i]);
     for(var li=0; li<LADDERS.length; li++){ ladder(LADDERS[li], FLOOR_Y[LADDERS[li].up], FLOOR_Y[LADDERS[li].dn]); }
 
-    // larder
-    ctx.fillStyle = (cam && cam.carrying) ? "#e6dfe8" : "#cfc9d4";
-    rrect(LARDER.x, FLOOR_Y[0]-20, LARDER.w, 20, 3); ctx.fill();
-    if(cam && cam.carrying){ ctx.strokeStyle = "var(--amber)"; ctx.strokeStyle = "#f2a03d"; ctx.lineWidth = 2;
-      rrect(LARDER.x, FLOOR_Y[0]-20, LARDER.w, 20, 3); ctx.stroke(); }
-    ctx.fillStyle = "#cbb27a"; ctx.font = '9px "Jersey 15", monospace'; ctx.textAlign="left"; ctx.textBaseline="alphabetic";
-    ctx.fillText("LARDER", LARDER.x-2, FLOOR_Y[0]-24);
-
-    // parts on the floor (if not picked/delivered)
+    drawBay();
     for(var p=0;p<parts.length;p++){
       var pt = parts[p];
-      if(!pt.picked && !pt.delivered){ partTile(pt.x, FLOOR_Y[pt.floor]-8, pt.col, pt.tcol, pt.label); }
+      if(!pt.picked && !pt.delivered) drawPart(pt);
     }
-
-    // Tickers
     for(var di=0; di<tickers.length; di++){ drawTicker(tickers[di]); }
-    // Cam
     drawCam(cam);
-
-    // OIL spray puff
-    if(sprayFx > 0){
-      var sy = FLOOR_Y[sprayFloor] - 10;
-      for(var sp2=0; sp2<3; sp2++){
-        var sx = sprayX + sprayDir * (16 + sp2*14);
-        ctx.fillStyle = (sp2 % 2 === 0) ? "#f07cc0" : "#f2a03d";
-        ctx.beginPath(); ctx.arc(sx, sy, 5 - sp2, 0, Math.PI*2); ctx.fill();
-      }
-    }
-
-    // HUD
+    if(sprayFx > 0) sprayPuff(FLOOR_Y[sprayFloor]);
     drawHud();
-
-    // invuln flash
     if(invuln>0 && !reduce && (Math.floor(invuln/6)%2===0)){
       ctx.fillStyle = "rgba(255,255,255,.06)"; ctx.fillRect(0,HUD_H,VW,VH-HUD_H);
     }
   }
 
+  /* THE BOT BAY (was the larder): an assembly frame where the delivered parts snap together into a
+     FinnBot. Missing parts show as a ghost, so the bay itself says what is still to fetch. */
+  function drawBay(){
+    var bx = LARDER.x, by = FLOOR_Y[0], bw = LARDER.w, cx = bx + bw / 2;
+    var hot = !!(cam && cam.carrying), P = botPal(), got = {};
+    for(var i = 0; i < parts.length; i++) got[parts[i].type] = parts[i].delivered;
+    ctx.fillStyle = hot ? "rgba(242,160,61,.20)" : "rgba(90,150,255,.10)"; ctx.fillRect(bx + 1, by - 42, bw - 2, 42);
+    ctx.fillStyle = "#26314f"; ctx.fillRect(bx - 2, by - 46, 3, 46); ctx.fillRect(bx + bw - 1, by - 46, 3, 46);
+    ctx.fillStyle = hot ? "#f2a03d" : "#3d4f86"; ctx.fillRect(bx - 3, by - 47, bw + 6, 3);
+    ctx.fillStyle = "#3a4a73"; ctx.fillRect(bx - 3, by - 4, bw + 6, 4);
+    ctx.fillStyle = hot ? "#ffcf6a" : "#39c6ff"; ctx.fillRect(bx, by - 3, bw, 1);
+    blit(P.A, cx - 13, by - 18, 26, 12, false, got.A ? null : P.A.ghost);
+    blit(P.B, cx - 8, by - 16, 16, 12, false, got.B ? null : P.B.ghost);
+    blit(P.H, cx - 8, by - 29, 16, 13, false, got.H ? null : P.H.ghost);
+    ctx.fillStyle = hot ? "#ffcf6a" : "#9fb3e0"; ctx.font = '9px "Jersey 15", monospace';
+    ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+    ctx.fillText("BOT BAY", cx, by - 50);
+    if(hot){ var ay = by - 64 + ((animT >> 3) & 1) * 2; ctx.fillStyle = "#ffcf6a";
+      ctx.beginPath(); ctx.moveTo(cx - 5, ay); ctx.lineTo(cx + 5, ay); ctx.lineTo(cx, ay + 5); ctx.closePath(); ctx.fill(); }
+    ctx.textAlign = "left";
+  }
+  /* A part waiting on the floor: it hovers on a small beam and glints, so it reads as a pickup. */
+  function drawPart(pt){
+    var y = FLOOR_Y[pt.floor], spr = botPal()[pt.type], bob = reduce ? 0 : ((animT >> 4) & 1);
+    ctx.fillStyle = "rgba(57,198,255,.18)"; ctx.fillRect(pt.x - 10, y - 4, 20, 4);
+    ctx.fillStyle = "rgba(57,198,255,.55)"; ctx.fillRect(pt.x - 9, y - 1, 18, 1);
+    blit(spr, pt.x - 8, y - 4 - spr.h - bob, 16, spr.h, false);
+    var g = (animT + pt.x) % 90;
+    if(g < 14 && !reduce){ var gx = pt.x + 6, gy = y - 4 - spr.h - bob + 1, s = (g < 7 ? g : 14 - g) * 0.5;
+      ctx.fillStyle = "#ffffff"; ctx.fillRect(gx - s, gy, s * 2 + 1, 1); ctx.fillRect(gx, gy - s, 1, s * 2 + 1); }
+  }
+  /* Mr Bot is the real Bot 2969 art. A 512px source drawn into 20x22 needs SMOOTHED sampling —
+     nearest-neighbour at that ratio drops whole rows of the outline. Faces his direction of travel,
+     bobs a pixel as he walks, and carries the part overhead in both hands. */
   function drawCam(c){
     if(!c) return;
-    var x = c.x, y = c.y;
-    if(invuln>0 && Math.floor(invuln/5)%2===0){ /* blink */ }
+    var x = c.x, y = c.y, moved = false;
+    if(lastX){ var px = lastX.get(c); moved = c.climbing || (px !== undefined && Math.abs(px - x) > 0.01); lastX.set(c, x); }
+    var bob = (moved && !reduce) ? (stepFrame(c)) : 0, top = y - 22 - bob;
+    ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.fillRect(x - 8, y - 1, 16, 2);
+    if(invuln > 0 && Math.floor(invuln / 5) % 2 === 0) ctx.globalAlpha = 0.45;
     if(camReady){
-      /* ARCADE PARITY (researched 2026-09-25): the platform-assembly original hardware draws 8x8
-         characters and 16x16 SPRITES — the chef and the enemies are the SAME size. Ours drew
-         the player 22x24 against enemies of 20x22 (ticker) and 18x20 (workshop), a ~20% hero
-         bias. Now 20x22, equal to the ticker and within a pixel of the workshop bot. Pure
-         render: the collision model does not read these numbers. */
-      ctx.drawImage(camImg, x-10, y-22, 20, 22);
+      ctx.save(); ctx.imageSmoothingEnabled = true; try{ ctx.imageSmoothingQuality = "high"; }catch(e){}
+      if(c.dir < 0 && !c.climbing){ ctx.translate(x, 0); ctx.scale(-1, 1); ctx.drawImage(camImg, -10, top, 20, 22); }
+      else ctx.drawImage(camImg, x - 10, top, 20, 22);
+      ctx.restore();
     } else {
-      ctx.fillStyle = "#f2c14e"; rrect(x-10, y-22, 20, 22, 4); ctx.fill();
-      ctx.fillStyle = "#3e323a"; ctx.fillRect(x-6, y-17, 4,4); ctx.fillRect(x+2, y-17, 4,4);
+      blit(PIECES[0].B, x - 8, top + 10, 16, 12, false); blit(PIECES[0].H, x - 8, top, 16, 12, false);
     }
-    // carried part above head
-    if(c.carrying){
-      partTile(x, y-32, c.carrying.col, c.carrying.tcol, c.carrying.label);
-    }
+    ctx.globalAlpha = 1;
+    if(c.carrying) drawCarried(c.carrying, x, top);
+  }
+  function drawCarried(part, x, top){
+    var spr = botPal()[part.type], lift = (carriedFx > 0) ? Math.ceil(carriedFx / 10) : 0;
+    var py = top - spr.h + 2 - lift, hy = py + spr.h - 6;
+    blit(spr, x - 8, py, 16, spr.h, false);
+    ctx.fillStyle = INK; ctx.fillRect(x - 11, hy - 1, 4, 6); ctx.fillRect(x + 7, hy - 1, 4, 6);
+    ctx.fillStyle = "#c3cbdb"; ctx.fillRect(x - 10, hy, 2, 4); ctx.fillRect(x + 8, hy, 2, 4);
+  }
+  function oilDrips(x, y){
+    ctx.fillStyle = "#f07cc0";
+    var d = (animT >> 2) % 6;
+    ctx.fillRect(x - 6, y - 4 + d, 2, 3); ctx.fillRect(x + 1, y - 7 + ((d + 3) % 6), 2, 3); ctx.fillRect(x + 6, y - 5 + ((d + 1) % 6), 2, 2);
+    var a = animT * 0.18;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(x + Math.cos(a) * 9 - 1, y - 26 + Math.sin(a) * 2, 2, 2);
+    ctx.fillRect(x + Math.cos(a + Math.PI) * 9 - 1, y - 26 + Math.sin(a + Math.PI) * 2, 2, 2);
   }
   function drawTicker(t){
     if(!t) return;
-    var frozen = t.frozen > 0;
-    ctx.fillStyle = frozen ? "#bfeff2" : "#3fd0d8"; rrect(t.x-10, t.y-22, 20, 22, 8); ctx.fill();
-    ctx.fillStyle = "#0c5a60"; ctx.fillRect(t.x-5, t.y-15, 3,3); ctx.fillRect(t.x+2, t.y-15, 3,3);
-    ctx.strokeStyle = "#0c5a60"; ctx.lineWidth=1; ctx.beginPath();
-    ctx.arc(t.x, t.y-9, 4, 0, frozen ? Math.PI*2 : Math.PI); ctx.stroke();
-    if(frozen){ ctx.strokeStyle = "#eafaff"; ctx.beginPath();
-      ctx.moveTo(t.x-8,t.y-24); ctx.lineTo(t.x-4,t.y-20); ctx.moveTo(t.x+8,t.y-24); ctx.lineTo(t.x+4,t.y-20); ctx.stroke(); }
+    var frozen = t.frozen > 0, key = frozen ? 0 : ((animT >> 3) & 1);
+    var spr = TICKER[key][stepFrame(t)];
+    blit(spr, t.x - 10, t.y - 22, 20, 22, false, frozen ? spr.ice : null);
+    if(frozen) oilDrips(t.x, t.y);
   }
   function drawHud(){
     ctx.fillStyle = "#000"; ctx.fillRect(0,0,VW,HUD_H);
+    ctx.fillStyle = "#1b2546"; ctx.fillRect(0, HUD_H - 2, VW, 2);
     ctx.textBaseline = "middle"; ctx.textAlign = "left";
     ctx.fillStyle = "#fff"; ctx.font = '13px "Jersey 15", monospace';
     ctx.fillText("SC " + String(score).padStart(5,"0"), 8, 12);
     ctx.fillText("HI " + String(hsc).padStart(5,"0"), 92, 12);
     ctx.fillStyle = "#f2a03d";
     ctx.fillText("BONUS " + String(Math.round(bonus)).padStart(3,"0"), 8, 27);
-    // OIL squirt meter
     ctx.fillStyle = "#f2b6d2"; ctx.fillText("OIL", 96, 27);
     for(var q=0;q<squirtMax;q++){ ctx.fillStyle = (q < squirts) ? "#f07cc0" : "#5a3a4a"; ctx.fillRect(122 + q*10, 23, 7, 9); }
-    // lives top-right
-    for(var i=0;i<Math.min(lives,8);i++){ var lx = VW - 12 - i*12; ctx.fillStyle = "#f2c14e"; rrect(lx-4, 6, 9, 12, 2); ctx.fill(); }
+    lifeIcons();
     ctx.fillStyle = "#c9c2d4"; ctx.font = '10px "Jersey 15", monospace'; ctx.textAlign="right";
     ctx.fillText("shift " + shiftN, VW - 12, 27); ctx.textAlign = "left";
   }
@@ -1893,39 +2130,110 @@ body:not(.mode-paid) .app .facts{ display:block !important; }
     }
   }
   function drawSEnemy(en){
-    if(en.state==="squashed") return;
-    var frozen = en.frozen>0;
-    ctx.fillStyle = frozen ? "#cfe8ee" : en.col; rrect(en.x-10, en.y-22, 20, 22, 6); ctx.fill();  /* sprite parity: same 20x22 as the player and the ticker */
-    ctx.fillStyle = "#2a1420"; ctx.fillRect(en.x-5, en.y-15, 3,3); ctx.fillRect(en.x+2, en.y-15, 3,3);
-    if(frozen){ ctx.strokeStyle="#eafaff"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(en.x-7,en.y-22); ctx.lineTo(en.x-3,en.y-18); ctx.moveTo(en.x+7,en.y-22); ctx.lineTo(en.x+3,en.y-18); ctx.stroke(); }
+    if(en.state==="squashed"){
+      /* SQUASHED: flattened for the first beat of its respawn timer, with a burst of bolts. Pure
+         render — resp is the sim's own countdown (200 frames), read here only to pick the look. */
+      if(en.resp > 176){ var sk = SKIN[en.kind] || MAG, k = 200 - en.resp;
+        blit(sk[0], en.x - 11, en.y - 7, 22, 7, false);
+        ctx.fillStyle = "#ffd23f";
+        for(var b = 0; b < 4; b++){ var a = b * 1.57 + 0.6; ctx.fillRect(en.x + Math.cos(a) * (6 + k), en.y - 8 - Math.sin(a) * (4 + k * 0.6), 2, 2); } }
+      return;
+    }
+    var frozen = en.frozen>0, skin = SKIN[en.kind] || MAG;
+    var spr = skin[stepFrame(en)];
+    var flip = (skin === SPARK) ? (((animT >> 2) & 1) === 1) : (enemyFacing(en) < 0);
+    blit(spr, en.x - 10, en.y - 22, 20, 22, flip, frozen ? spr.ice : null);   /* sprite parity: same 20x22 as the player and the ticker */
+    if(frozen) oilDrips(en.x, en.y);
+  }
+  /* The workshop's four layers are a FinnBot, top to bottom: HEAD, CHEST, ARMS, LEGS — one Bot per
+     column, each column its own colourway. A walked-across segment sinks 2px, as the arcade's do;
+     a column with all four plated is a finished Bot, and its eyes and heart light up. */
+  function slice(t, x, top, bp, lit){
+    function R(c, a, b, w, h){ ctx.fillStyle = c; ctx.fillRect(x + a, top + b, w, h); }
+    var GL = "#c3cbdb", GD = "#7c879c", WH = "#f6f9ff";
+    if(t === "H"){
+      R(INK, 14, -7, 1, 4); R(INK, 41, -7, 1, 4);
+      R("#c58cff", 13, -10, 3, 3); R("#c58cff", 40, -10, 3, 3); R("#f0d9ff", 13, -10, 1, 1); R("#f0d9ff", 40, -10, 1, 1);
+      R(INK, 1, 1, 4, 7); R(GL, 2, 2, 2, 5); R(INK, 51, 1, 4, 7); R(GL, 52, 2, 2, 5);
+      R(INK, 4, -3, 48, 14); R(bp.m, 5, -2, 46, 12); R(bp.l, 5, -2, 46, 2); R(bp.d, 5, 8, 46, 2);
+      R(INK, 12, -1, 10, 7); R(WH, 13, 0, 8, 5); R(INK, 34, -1, 10, 7); R(WH, 35, 0, 8, 5);
+      R(lit ? "#ffe066" : INK, 16, 1, 3, 3); R(lit ? "#ffe066" : INK, 38, 1, 3, 3);
+      R(INK, 21, 6, 14, 4); for(var i = 0; i < 4; i++) R(WH, 22 + i * 3, 7, 2, 2);
+    } else if(t === "B"){
+      R(INK, -2, 0, 6, 7); R(GL, -1, 1, 4, 5); R(INK, 52, 0, 6, 7); R(GL, 53, 1, 4, 5);
+      R(INK, 2, 0, 52, 11); R(bp.m, 3, 1, 50, 9); R(bp.l, 3, 1, 50, 1); R(bp.d, 3, 9, 50, 1);
+      R(bp.l, 5, 3, 1, 1); R(bp.l, 50, 3, 1, 1); R(bp.l, 5, 7, 1, 1); R(bp.l, 50, 7, 1, 1);
+      R(INK, 9, 2, 5, 5); R("#39c6ff", 10, 3, 3, 3); R("#d4f4ff", 10, 3, 1, 1);
+      R(INK, 15, 4, 4, 4); R("#ffd23f", 16, 5, 2, 2);
+      R(bp.d, 24, 3, 1, 5); R(bp.d, 27, 3, 1, 5); R(bp.d, 30, 3, 1, 5);
+      var hc = lit ? ((animT >> 4) & 1 ? "#ff7a8a" : "#ff3b4e") : "#ff3b4e", hx = 36, hy = 2;
+      R(hc, hx + 1, hy, 2, 1); R(hc, hx + 4, hy, 2, 1); R(hc, hx, hy + 1, 7, 2); R(hc, hx + 1, hy + 3, 5, 1);
+      R(hc, hx + 2, hy + 4, 3, 1); R(hc, hx + 3, hy + 5, 1, 1); R("#ffc2c9", hx + 1, hy + 1, 1, 1);
+    } else if(t === "A"){
+      R(INK, -3, 1, 4, 9); R(bp.m, -2, 2, 2, 2); R(bp.m, -2, 6, 2, 2);
+      R(INK, 55, 1, 4, 9); R(bp.m, 56, 2, 2, 2); R(bp.m, 56, 6, 2, 2);
+      R(INK, 1, 2, 14, 7); R(INK, 41, 2, 14, 7);
+      for(var j = 0; j < 6; j++){ R(j & 1 ? GD : GL, 2 + j * 2, 3, 2, 5); R(j & 1 ? GD : GL, 42 + j * 2, 3, 2, 5); }
+      R(INK, 14, 0, 28, 11); R(bp.d, 15, 1, 26, 9);
+      for(var q = 0; q < 9; q++) R(bp.m, 16 + q * 3, 1, 1, 9);
+      R(INK, 23, 2, 10, 7); R("#ffd23f", 24, 3, 8, 5); R(INK, 27, 4, 2, 3);
+    } else {
+      R(INK, 8, 0, 40, 4); R(bp.d, 9, 1, 38, 2);
+      R(INK, 12, 3, 10, 5); R(INK, 34, 3, 10, 5);
+      R(GL, 13, 4, 8, 1); R(GD, 13, 5, 8, 1); R(GL, 13, 6, 8, 1);
+      R(GL, 35, 4, 8, 1); R(GD, 35, 5, 8, 1); R(GL, 35, 6, 8, 1);
+      R(INK, 8, 7, 16, 4); R(bp.m, 9, 8, 14, 2); R(bp.l, 9, 8, 14, 1);
+      R(INK, 32, 7, 16, 4); R(bp.m, 33, 8, 14, 2); R(bp.l, 33, 8, 14, 1);
+    }
   }
   function drawBar(g){
-    var top = g.y - 11;
-    ctx.fillStyle = g.def.col; ctx.fillRect(g.x, top, SBW, 11);
-    if(g.state==="rest"){ for(var k=0;k<4;k++){ if(g.seg[k]){ ctx.fillStyle="rgba(0,0,0,.30)"; ctx.fillRect(g.x+k*SSEG, top, SSEG, 11); } } }
-    ctx.strokeStyle="rgba(0,0,0,.4)"; ctx.lineWidth=0.8;
-    for(var k=1;k<4;k++){ ctx.beginPath(); ctx.moveTo(g.x+k*SSEG, top); ctx.lineTo(g.x+k*SSEG, g.y); ctx.stroke(); }
-    ctx.fillStyle=g.def.tc; ctx.font='9px "Jersey 15", monospace'; ctx.textAlign="center"; ctx.textBaseline="middle";
-    ctx.fillText(g.def.t, g.x+SBW/2, top+5); ctx.textAlign="left"; ctx.textBaseline="alphabetic";
+    var top = g.y - 11, bp = BOTPAL[g.col % BOTPAL.length];
+    var lit = (g.state === "plated" && sPlated[g.col] >= 4);
+    var walked = g.state === "rest" && (g.seg[0] || g.seg[1] || g.seg[2] || g.seg[3]);
+    /* On the pad a part is drawn by its SLOT — legs, arms, chest, head from the bottom — so a column
+       is always a whole FinnBot even when a part dropped with riders skipped a level and landed out
+       of order. Off the pad it is drawn as itself. */
+    var t = g.state === "plated" ? "OABH".charAt(Math.max(0, Math.min(3, Math.round((SPLATE - g.y) / 11)))) : g.def.t;
+    if(!walked){ slice(t, g.x, top, bp, lit); return; }
+    for(var k = 0; k < 4; k++){
+      var cx0 = g.x + k * SSEG - (k === 0 ? 8 : 0), cw = SSEG + (k === 0 ? 8 : 0) + (k === 3 ? 8 : 0);
+      ctx.save(); ctx.beginPath(); ctx.rect(cx0, top - 12, cw, 26); ctx.clip();
+      ctx.translate(0, g.seg[k] ? 2 : 0);
+      slice(t, g.x, top, bp, lit);
+      ctx.restore();
+    }
+  }
+  /* The build pads under each column, with four lamps that count the layers plated. */
+  function drawPad(c){
+    var x = SCX[c] - 30, done = sPlated[c] >= 4;
+    ctx.fillStyle = INK; ctx.fillRect(x - 1, SPLATE, 62, 8);
+    ctx.fillStyle = "#3a4a73"; ctx.fillRect(x, SPLATE + 1, 60, 6);
+    ctx.fillStyle = done ? "#5cff9d" : "#39c6ff"; ctx.fillRect(x + 2, SPLATE + 1, 56, 1);
+    if(done){ ctx.fillStyle = "rgba(92,255,157,.10)"; ctx.fillRect(x, SPLATE - 50, 60, 50); }
+    for(var i = 0; i < 4; i++){
+      ctx.fillStyle = INK; ctx.fillRect(x + 13 + i * 9, SPLATE + 14, 7, 7);
+      ctx.fillStyle = (i < sPlated[c]) ? (done ? "#5cff9d" : "#ffd23f") : "#2a3354";
+      ctx.fillRect(x + 14 + i * 9, SPLATE + 15, 5, 5);
+    }
   }
   function drawStack(){
     ctx.clearRect(0,0,VW,VH);
-    ctx.fillStyle="#000"; ctx.fillRect(0,0,VW,VH);
-    ctx.fillStyle="#123fd6"; ctx.fillRect(0,HUD_H,20,VH-HUD_H); ctx.fillRect(VW-20,HUD_H,20,VH-HUD_H);
-    for(var r=0;r<SR.length;r++){ brickRow(20, SR[r], VW-40); }
-    for(var cc=0;cc<SCX.length;cc++){ ctx.fillStyle="#cfc9d4"; rrect(SCX[cc]-30, SPLATE, 60, 6, 2); ctx.fill(); }
+    backdrop(SR);
+    ctx.fillStyle = "#141b36"; ctx.fillRect(20, SPLATE + 8, VW - 40, VH - SPLATE - 8);
+    for(var hz = 20; hz < VW - 20; hz += 8){ ctx.fillStyle = ((hz >> 3) & 1) ? INK : "#f2c230"; ctx.fillRect(hz, VH - 8, 8, 3); }
+    for(var r=0;r<SR.length;r++){ girder(20, SR[r], VW-40); }
     for(var i=0;i<sLadders.length;i++){ ladder(sLadders[i], SR[sLadders[i].up], SR[sLadders[i].dn]); }
+    for(var cc=0;cc<SCX.length;cc++) drawPad(cc);
     for(var i=0;i<sIng.length;i++){ drawBar(sIng[i]); }
     for(var i=0;i<sEnemies.length;i++){ drawSEnemy(sEnemies[i]); }
     drawCam(sCam);
-    if(sprayFx > 0){ var sy = SR[sprayFloor] - 10;
-      for(var sp2=0; sp2<3; sp2++){ var sx = sprayX + sprayDir*(16+sp2*14);
-        ctx.fillStyle = (sp2%2===0)?"#f07cc0":"#f2a03d"; ctx.beginPath(); ctx.arc(sx, sy, 5-sp2, 0, Math.PI*2); ctx.fill(); } }
+    if(sprayFx > 0) sprayPuff(SR[sprayFloor]);
     if(invuln>0 && !reduce && (Math.floor(invuln/6)%2===0)){ ctx.fillStyle="rgba(255,255,255,.06)"; ctx.fillRect(0,HUD_H,VW,VH-HUD_H); }
     drawStackHud();
   }
   function drawStackHud(){
     ctx.fillStyle="#000"; ctx.fillRect(0,0,VW,HUD_H);
+    ctx.fillStyle = "#1b2546"; ctx.fillRect(0, HUD_H - 2, VW, 2);
     ctx.textBaseline="middle"; ctx.textAlign="left";
     ctx.fillStyle="#fff"; ctx.font='13px "Jersey 15", monospace';
     ctx.fillText("SC "+String(score).padStart(5,"0"), 8, 12);
@@ -1934,7 +2242,7 @@ body:not(.mode-paid) .app .facts{ display:block !important; }
     ctx.fillStyle="#f2b6d2"; ctx.fillText("WORKSHOP", 100, 12);
     ctx.fillStyle="#f2b6d2"; ctx.fillText("OIL", 100, 27);
     for(var q=0;q<squirtMax;q++){ ctx.fillStyle=(q<squirts)?"#f07cc0":"#5a3a4a"; ctx.fillRect(126+q*10, 23, 7, 9); }
-    for(var i=0;i<Math.min(lives,8);i++){ var lx=VW-12-i*12; ctx.fillStyle="#f2c14e"; rrect(lx-4,6,9,12,2); ctx.fill(); }
+    lifeIcons();
     ctx.fillStyle="#c9c2d4"; ctx.font='10px "Jersey 15", monospace'; ctx.textAlign="right";
     ctx.fillText("round "+shiftN, VW-12, 27); ctx.textAlign="left";
   }
@@ -2249,7 +2557,7 @@ try{var _bpIntro=new URLSearchParams(location.search);if(!_bpIntro.get('phantom_
   var facts=document.getElementById('facts')||document.querySelector('.facts');
   var statusEl=document.querySelector('.status');
   var confirmSheet=document.getElementById('confirmSheet');
-  var FREE_FACTS='Free \u00b7 no wallet \u00b7 fetch the 3 parts \u00b7 spray OIL to stun';
+  var FREE_FACTS='Free \u00b7 no wallet \u00b7 carry 3 FinnBot parts to the Bot Bay \u00b7 spray OIL to stun';
   var PAID_FACTS='Paid \u00b7 25 OIL entry \u00b7 one run \u00b7 fun leaderboard (not verified) \u00b7 holders \u00d71.5';
 
   function setMode(m){
