@@ -1240,10 +1240,10 @@ body:not(.mode-paid) .app .facts{ display:block !important; }
     <div class="ctrls">
       <button class="ctl fire" id="fireBtn" aria-label="Spray OIL">OIL</button>
       <div class="dpad" id="dpad" aria-hidden="false">
-      <button class="ctl up" data-dir="up" aria-label="Up">▲</button>
-      <button class="ctl left" data-dir="left" aria-label="Left">◀</button>
-      <button class="ctl down" data-dir="down" aria-label="Down">▼</button>
-      <button class="ctl right" data-dir="right" aria-label="Right">▶</button>
+      <button class="ctl up" id="padU" data-dir="up" aria-label="Up">▲</button>
+      <button class="ctl left" id="padL" data-dir="left" aria-label="Left">◀</button>
+      <button class="ctl down" id="padD" data-dir="down" aria-label="Down">▼</button>
+      <button class="ctl right" id="padR" data-dir="right" aria-label="Right">▶</button>
       </div>
     </div>
   </div>
@@ -2400,7 +2400,7 @@ body:not(.mode-paid) .app .facts{ display:block !important; }
   // In Paid mode it returns true (blocks a free start) and drives the 25 OIL entry flow;
   // the paid run is then started by the controller via MrBotEngine.start() on entry confirm.
   function begin(){ if(!HEADLESS && window.MrBotPaid && MrBotPaid.handleStart && MrBotPaid.handleStart()) return; startGame(); }
-  if(!HEADLESS) window.MrBotEngine = { start: startGame };
+  if(!HEADLESS) window.MrBotEngine = { start: startGame, state: function(){ return G || {}; } };   /* state(): read-only, so gates can see the hero (check-swipe, 2026-11-22) */
 
   /* (2026-11-16) The How-To no longer opens itself at load: the coach layer (fb-coach) puts the goal and the one
      control over the live game instead, and the full rules stay one tap away behind the info button. */
@@ -3967,7 +3967,7 @@ var FB_FAMILY_CODEC = (function(){
   }catch(e){ /* the family layer must never break a game */ }
 })();
 </script>
-<script id="fb-coach" data-fb-goal="Fetch the parts and build the Bot." data-fb-touch="Arrows to walk · OIL to stun" data-fb-keys="Arrows move and climb · Space sprays">
+<script id="fb-coach" data-fb-goal="Fetch the parts and build the Bot." data-fb-touch="Swipe to walk · OIL to stun" data-fb-keys="Arrows move and climb · Space sprays" data-fb-gesture="layer">
 /* FinnBots COACH LAYER — the first 30 seconds (brief 1, 2026-10-27).
    Founder: "First 30 seconds of each of the six: starts instantly, the goal is obvious without reading, the first
    death/win feels good." Before this, a first-time player landed on a 115-193 word How to play card and had to read
@@ -4013,6 +4013,28 @@ var FB_FAMILY_CODEC = (function(){
     watch.observe(rules, { attributes: true, attributeFilter: ['class'] });
     setTimeout(function () { if (watch) { watch.disconnect(); watch = null; } }, 1500);
   }
+
+  /* 1b. a START CARD at boot (2026-11-22 first-minute sweep: Bot Merge's 60-word "Tap to start" card and Mr Bot's
+     "Start shift" card sat over the board — one more card to read and dismiss, which the coach exists to remove).
+     If the game shows a FREE start card (#startCard whose button is not a paid/wallet one), it is hidden and the game's
+     own start button is pressed on the player's first touch on the game. A touch on any other button (Free/Paid, ⓘ)
+     brings the card back untouched. Never on a wallet return (returned above). */
+  (function () {
+    var sc = document.getElementById('startCard'), sb = sc && sc.querySelector('button');
+    if (!sc || !sb || /oil|paid|wallet|connect|25/i.test(sb.textContent || '')) return;
+    var ov = sc.closest ? (sc.closest('.overlay') || sc) : sc;
+    var vis = function (e) { try { var r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(e).visibility !== 'hidden'; } catch (x) { return false; } };
+    if (!vis(sb)) return;
+    var prev = ov.style.display; ov.style.display = 'none'; ov.setAttribute('data-fb-autostart', '1');
+    var arm = function (e) {
+      if (!e.isTrusted) return;
+      ['pointerdown', 'keydown'].forEach(function (ev) { document.removeEventListener(ev, arm, true); });
+      ov.style.display = prev; ov.removeAttribute('data-fb-autostart');
+      var t = e.target, isUi = t && t.closest && t.closest('button, a, input, select, [role=button], .modebar');
+      if (!isUi && sb.click) sb.click();
+    };
+    ['pointerdown', 'keydown'].forEach(function (ev) { document.addEventListener(ev, arm, true); });
+  })();
 
   /* 2. the goal + the one control, over the live game */
   if (!goal) return;
